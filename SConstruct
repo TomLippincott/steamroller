@@ -2,6 +2,8 @@ import os
 import os.path
 import logging
 import random
+import subprocess
+import shlex
 
 
 vars = Variables("custom.py")
@@ -29,19 +31,20 @@ env = Environment(variables=vars, ENV=os.environ, TARFLAGS="-c -z", TARSUFFIX=".
 logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
 
-def qsub():
-    return random.randint(1, 100000)
-
-
-def qrelease():
-    
+def qsub(command, dep_ids=[], resources=[]):
+    deps = "" if len(dep_ids) == 0 else "-hold_jid %s" % (",".join([str(x) for x in dep_ids]))
+    res = "" if len(resources) == 0 else "-l %s" % (",".join([str(x) for x in resources]))
+    qcommand = "qsub -b y -cwd -j y -terse -o output.out %s %s %s" % (deps, res, command)
+    p = subprocess.Popen(shlex.split(qcommand), stdout=subprocess.PIPE)
+    out, err = p.communicate()
+    return int(out.strip())
 
 
 def GridWrapper(command):
     if env["GRID"] and isinstance(command, basestring):
         def grid_method(target, source, env):
             depends_on = set(filter(lambda x : x != None, [s.GetTag("built_by_job") for s in source]))
-            job_id = qsub()
+            job_id = qsub(env.subst(command, source=source, target=target), depends_on, [])
             for t in target:
                 t.Tag("built_by_job", job_id)
             print "Job %d depends on %s" % (job_id, depends_on)
@@ -72,7 +75,7 @@ env["BUILDERS"]["ReleaseJobs"] = Builder(action="qrls -u ${USER}")
 
 
 env['PRINT_CMD_LINE_FUNC'] = print_cmd_line
-env.Decider("MD5-timestamp")
+env.Decider("timestamp-newer")
 
 
 for task in env["TASKS"]:

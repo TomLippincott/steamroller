@@ -4,6 +4,7 @@ import codecs
 from itertools import chain
 import pickle
 import logging
+import math
 
 writer = codecs.getwriter("utf-8")
 reader = codecs.getreader("utf-8")
@@ -30,10 +31,12 @@ if __name__ == "__main__":
         indices = set(indices)
         instances, labels = [], []
         compressors = {}
+        counts = {}
         with reader(gzip.open(options.input)) as ifd:
             for i, line in enumerate(ifd):
                 if i in indices:
                     cid, label, text = line.strip().split("\t")
+                    counts[label] = counts.get(label, 0) + 1
                     compressors[label] = compressors.get(label, Compressor(label, options.max_ngram))
                     compressors[label].add(text)
 
@@ -42,7 +45,7 @@ if __name__ == "__main__":
             model.add(c, l)
 
         with gzip.open(options.output, "w") as ofd:
-            pickle.dump(model, ofd)
+            pickle.dump((model, counts), ofd)
 
     # testing
     elif options.test and options.model and options.output and options.input:
@@ -58,12 +61,14 @@ if __name__ == "__main__":
                     gold.append((cid, label))
         
         with gzip.open(options.model) as ifd:
-            model = pickle.load(ifd)
+            model, counts = pickle.load(ifd)
+        total = sum(counts.values())
+        prior = {k : math.log(v / float(total)) for k, v in counts.iteritems()}
         codes = model.compressors.keys()
         logging.info("Testing with %d instances, %d labels", len(instances), len(codes))            
         with writer(gzip.open(options.output, "w")) as ofd:
-            ofd.write("\t".join(["DOC", "USER", "GOLD"] + codes) + "\n")
+            ofd.write("\t".join(["DOC", "GOLD"] + codes) + "\n")
             for (cid, label), text in zip(gold, instances):
                 probs = model.classify(text)
-                ofd.write("\t".join([cid, label] + ["%f" % probs[l] for l in codes]) + "\n")
+                ofd.write("\t".join([cid, label] + ["%f" % (probs[l] + prior[l]) for l in codes]) + "\n")
 

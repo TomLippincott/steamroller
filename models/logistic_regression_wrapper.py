@@ -48,7 +48,7 @@ if __name__ == "__main__":
         dv = DictVectorizer(sparse=True)
         X = dv.fit_transform(instances)
         label_lookup = {}
-        classifier = linear_model.LogisticRegression()
+        classifier = linear_model.LogisticRegression(class_weight="balanced", solver="sag")
         for l in labels:
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
         logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
