@@ -354,10 +354,11 @@ if __name__ == "__main__":
         
         #plan = td.Plan("train")
         plan = td.TrainPlan()
-        plan.batch_size = 8
+        plan.num_multiprocess_processes = 0
+        plan.batch_size = 32
         plan.save_summaries_secs = 0
         plan.epochs = 2
-        plan.batches_per_epoch = 2
+        plan.batches_per_epoch = 8
         
         root_block = create_hierarchical_model(len(sym_lookup), len(label_lookup), options) if options.model_type == "hierarchical" else create_flat_model(len(sym_lookup), len(label_lookup), options)
 
@@ -411,8 +412,14 @@ if __name__ == "__main__":
         #plan.batch_size = 32
         plan.finalize_stats()
         s = tf.train.Supervisor()
+        #sess = 
         with s.managed_session() as sess:
-            plan.run(s, sess)
+            with sess.as_default():
+                plan.run(s, sess)
+                s = tf.train.Saver(tf.global_variables())
+                print s.save(sess, options.output)
+
+
         #tf.app.run()
         #sup = plan.create_supervisor()
         
