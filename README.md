@@ -18,6 +18,7 @@ And an R library:
 Of course, the models being tested have dependencies of their own.  To run the example, you will need:
 
 * scikit-learn
+* pip install https://storage.googleapis.com/tensorflow_fold/tensorflow_fold-0.0.1-cp27-none-linux_x86_64.whl
 
 ### Run the example
 
