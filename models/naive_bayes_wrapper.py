@@ -1,5 +1,5 @@
 import gzip
-from sklearn import naive_bayes
+from sklearn import naive_bayes, metrics
 from sklearn.feature_extraction import DictVectorizer
 import pickle
 import codecs

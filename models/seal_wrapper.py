@@ -1,3 +1,4 @@
+import re
 import gzip
 import pickle
 import codecs
@@ -16,6 +17,11 @@ from tensorflow_fold.blocks.plan import build_optimizer_from_params
 import tensorflow.contrib.seq2seq as seq2seq
 from seal import data
 from tqdm import tqdm
+import tempfile
+import shutil
+import os.path
+import tarfile
+from glob import glob
 
 
 writer = codecs.getwriter("utf-8")
@@ -212,8 +218,11 @@ def create_hierarchical_model(num_letters, num_labels, args):
                           name='output_layer'))
 
     label = td.Scalar(tf.int64)
+    cid = td.Scalar(tf.int64)
     root_block = td.Record([('text', output_layer),
-                            ('label', label)])
+                            ('label', label),
+                            ('cid', cid),
+    ])
 
     # Turn dropout on for training, off for validation.
     #plan.train_feeds[keep_prob] = FLAGS.keep_prob
@@ -223,7 +232,7 @@ def create_hierarchical_model(num_letters, num_labels, args):
 
 def example_generator(examples):
     for example in examples:
-        yield {'text': example[1], 'label': example[0]}
+        yield {'text': example[1], 'label': example[0], "cid" : example[2]}
 
     
 if __name__ == "__main__":
@@ -242,18 +251,22 @@ if __name__ == "__main__":
     parser.add_argument("--model_type", dest="model_type", default="flat", choices=["flat", "hierarchical"])
     parser.add_argument("--dev", dest="dev", type=float, default=.1)
     parser.add_argument("--attention", dest="attention", default="last", choices=["last", "mixture"])
-    parser.add_argument("--char_embed_vector_length", dest="char_embed_vector_length", default=512, type=int)
-    parser.add_argument("--char_state_vector_length", dest="char_state_vector_length", default=512, type=int)
+    parser.add_argument("--char_embed_vector_length", dest="char_embed_vector_length", default=128, type=int)
+    parser.add_argument("--char_state_vector_length", dest="char_state_vector_length", default=128, type=int)
     parser.add_argument("--word_state_vector_length", dest="word_state_vector_length", default=512, type=int)
     parser.add_argument("--char_cell_type", dest="char_cell_type", default="gru")
     parser.add_argument("--char_rnn_layer", dest="char_rnn_layer", default=2, type=int)
     parser.add_argument("--word_cell_type", dest="word_cell_type", default="gru", choices=["gru", "lstm", "gridlstm", "gridgru"])
-    parser.add_argument("--word_rnn_layer", dest="word_rnn_layer", default=2, type=int)
+    parser.add_argument("--word_rnn_layer", dest="word_rnn_layer", default=0, type=int)
     parser.add_argument("--dropout_probability", dest="dropout_probability", default=.5, type=float)
     parser.add_argument("--l2reg", dest="l2reg", default=False, action="store_true")
     parser.add_argument("--max_grad_norm", dest="max_grad_norm", default=10.0, type=float)
     parser.add_argument("--learning_rate", dest="learning_rate", default=.001, type=float)
     parser.add_argument("--optimizer", dest="optimizer", default="adam", choices=_OPTIMIZER_CLASSES.keys())
+
+    parser.add_argument("--epochs", dest="epochs", default=100, type=int)
+    parser.add_argument("--batch_size", dest="batch_size", default=32, type=int)
+    parser.add_argument("--batches_per_epoch", dest="batches_per_epoch", default=100, type=int)
     options = parser.parse_args()
 
     
@@ -319,22 +332,14 @@ if __name__ == "__main__":
         plan.examples     = example_generator(train)
         plan.dev_examples = example_generator(valid)
 
-    def main(_):
-        pass
-    #    random.seed(0)
-    #    tf.set_random_seed(random.randint(0, 2**32))
-        #assert 0 < FLAGS.keep_prob <= 1, '--keep_prob must be in (0, 1]\')'
-    #    td.Plan.create_from_flags(setup_plan).run()
-
-    #if __name__ == '__main__':
-    #    tf.app.run()
-
+    temppath = tempfile.mkdtemp(prefix="tlippincott-tf")
+    
     # training
     if options.train and options.output and options.input:
 
-
         
-        sym_lookup, label_lookup = {"unk" : 0}, {"unk" : 0}
+        
+        cid_lookup, sym_lookup, label_lookup = {"unk" : 0}, {"unk" : 0}, {"cid" : 0}
         train, dev = [], []
         with reader(gzip.open(options.train)) as ifd:
             indices = [int(l.strip()) for l in ifd]
@@ -345,21 +350,20 @@ if __name__ == "__main__":
                 if i in indices:
                     cid, label, text = line.strip().split("\t")
                     label_lookup[label] = label_lookup.get(label, len(label_lookup))
+                    cid_lookup[cid] = label_lookup.get(cid, len(cid_lookup))
                     syms = []
                     for c in text:
                         sym_lookup[c] = sym_lookup.get(c, len(sym_lookup))
                         syms.append(sym_lookup[c])
-                    instances.append((label_lookup[label], syms))
+                    instances.append((label_lookup[label], syms, cid_lookup[cid]))
         logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
-        
-        #plan = td.Plan("train")
         plan = td.TrainPlan()
         plan.num_multiprocess_processes = 0
-        plan.batch_size = 32
+        plan.batch_size = options.batch_size
         plan.save_summaries_secs = 0
-        plan.epochs = 2
-        plan.batches_per_epoch = 8
-        
+        plan.epochs = options.epochs
+        plan.batches_per_epoch = options.batches_per_epoch
+
         root_block = create_hierarchical_model(len(sym_lookup), len(label_lookup), options) if options.model_type == "hierarchical" else create_flat_model(len(sym_lookup), len(label_lookup), options)
 
         plan.compiler = td.Compiler.create(root_block)
@@ -408,7 +412,7 @@ if __name__ == "__main__":
 
         plan.examples     = example_generator(instances[0 : int(len(instances) * options.dev)])
         plan.dev_examples = example_generator(instances[int(len(instances) * options.dev):])
-        plan.logdir = "temp/"
+        plan.logdir = temppath
         #plan.batch_size = 32
         plan.finalize_stats()
         s = tf.train.Supervisor()
@@ -416,8 +420,8 @@ if __name__ == "__main__":
         with s.managed_session() as sess:
             with sess.as_default():
                 plan.run(s, sess)
-                s = tf.train.Saver(tf.global_variables())
-                print s.save(sess, options.output)
+                #s = tf.train.Saver(tf.global_variables())
+                #print s.save(sess, options.output)
 
 
         #tf.app.run()
@@ -436,28 +440,118 @@ if __name__ == "__main__":
         #     root_block = create_flat_model(len(sym_lookup), len(label_lookup)) #, plan)
 
 
-        #with gzip.open(options.output, "w") as ofd:
-        #    pickle.dump((classifier, dv, label_lookup), ofd)            
-
+        with gzip.open(os.path.join(temppath, "lookups.pkl.gz"), "w") as ofd:
+            pickle.dump((sym_lookup, label_lookup, cid_lookup), ofd)
+        with open(os.path.join(temppath, "checkpoint")) as ifd:
+            text = ifd.read()
+            text = re.sub(temppath, "TMPPATH", text)
+        with open(os.path.join(temppath, "checkpoint"), "w") as ofd:
+            ofd.write(text)
+        with tarfile.open(options.output, "w:gz") as ofd:
+            for name in glob(os.path.join(temppath, "*")):
+                ofd.add(name, arcname=os.path.basename(name))
     # testing
     elif options.test and options.model and options.output and options.input:
-        # with gzip.open(options.model) as ifd:
-        #     classifier, dv, label_lookup = pickle.load(ifd)
-        # with reader(gzip.open(options.test)) as ifd:
-        #     indices = [int(l.strip()) for l in ifd]
-        # indices = set(indices)
-        # instances, gold = [], []
-        # with reader(gzip.open(options.input)) as ifd:
-        #     for i, line in enumerate(ifd):
-        #         if i in indices:
-        #             cid, label, text = line.strip().split("\t")
-        #             instances.append(text)
-        #             gold.append((cid, label))
-        #logging.info("Testing with %d instances, %d labels", len(instances), len(label_lookup))
-        #with writer(gzip.open(options.output, "w")) as ofd:
-        #    ofd.write("\t".join(["ID", "GOLD"] + [inv_label_lookup[i] for i in range(len(inv_label_lookup))]) + "\n")
-        #    for probs, (cid, gold) in zip(y, gold):
-        #        ofd.write("\t".join([cid, gold] + ["%f" % x for x in probs.flatten()]) + "\n")
-        pass
+        with tarfile.open(options.model) as ifd:
+            ifd.extractall(path=temppath)
+        with open(os.path.join(temppath, "checkpoint")) as ifd:
+            text = ifd.read()
+            text = re.sub("TMPPATH", temppath, text)
+        with open(os.path.join(temppath, "checkpoint"), "w") as ofd:
+            ofd.write(text)
+        with gzip.open(os.path.join(temppath, "lookups.pkl.gz")) as ifd:
+             sym_lookup, label_lookup, cid_lookup = pickle.load(ifd)
+        id_to_label = {v : k for k, v in label_lookup.iteritems()}
+        plan = td.InferPlan()
+        plan.num_multiprocess_processes = 0
+        plan.batch_size = 32
+        plan.save_summaries_secs = 0
+        plan.epochs = 2
+        plan.batches_per_epoch = 8
+
+        root_block = create_hierarchical_model(len(sym_lookup), len(label_lookup), options) if options.model_type == "hierarchical" else create_flat_model(len(sym_lookup), len(label_lookup), options)
+
+
+        
+        test = []
+        with reader(gzip.open(options.test)) as ifd:
+            indices = [int(l.strip()) for l in ifd]
+        indices = set(indices)
+        instances, labels = [], []
+        with reader(gzip.open(options.input)) as ifd:
+            for i, line in enumerate(ifd):
+                if i in indices:
+                    cid, label, text = line.strip().split("\t")
+                    cid_lookup[cid] = label_lookup.get(cid, len(cid_lookup))
+                    syms = []
+                    for c in text:
+                        syms.append(sym_lookup.get(c, 0))
+                    instances.append((label_lookup.get(label, 0), syms, cid_lookup[cid]))
+        logging.info("Testing with %d instances, %d labels", len(instances), len(label_lookup))
+
+        plan.compiler = td.Compiler.create(root_block)
+        logits, labels = plan.compiler.output_tensors
+        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            logits=logits,
+            labels=labels
+        )
+        plan.outputs = [logits]        
+        global_step = tf.contrib.framework.get_or_create_global_step()
+        lr = tf.train.exponential_decay(options.learning_rate, global_step,
+                                        100000, 0.96, staircase=True)
+
+        optimizer = build_optimizer_from_params(options.optimizer, learning_rate=options.learning_rate)
+        tvars = tf.trainable_variables()
+
+
+        nvars = np.prod(tvars[0].get_shape().as_list())
+        for var in tvars[1:]:
+            sh = var.get_shape().as_list()
+            nvars += np.prod(sh)
+        print("{} total variables".format(nvars))
+
+        cost = None
+        if options.l2reg:
+            l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in tvars])
+            cost = cross_entropy + l2_loss
+            plan.losses['cross_entropy_L2'] = cost
+        else:
+            cost = cross_entropy
+            plan.losses['cross_entropy'] = cost
+
+        predictions = tf.argmax(logits, 1)
+        plan.metrics['accuracy'] = tf.reduce_mean(
+            tf.cast(tf.equal(predictions, labels), dtype=tf.float32)
+        )
+
+        # A list of (gradient, variable) pairs. Variable is always
+        # present, but gradient can be None.
+        grads_and_vars = optimizer.compute_gradients(cost, tvars)
+        
+        tf.clip_by_global_norm([x[0] for x in grads_and_vars], options.max_grad_norm)
+
+        plan.train_op = optimizer.apply_gradients(grads_and_vars,
+                                                  global_step=global_step)
+
+        plan.examples     = example_generator(instances)
+        plan.logdir = "temp/"
+        plan.logdir_restore = "temp/"
+        plan.finalize_stats()
+        s = tf.train.Supervisor()
+        id_to_cid = {v : k for k, v in cid_lookup.iteritems()}
+        def rfun(res):
+            with writer(gzip.open(options.output, "w")) as ofd:
+                ofd.write("\t".join(["ID", "GOLD"] + [id_to_label[i] for i in range(len(id_to_label))]) + "\n")
+                for (gold, cid), (probs,) in res:
+                    ofd.write("\t".join([cid, gold] + ["%f" % x for x in probs.flatten()]) + "\n")
+        def kfun(x):
+            return (id_to_label[x["label"]], id_to_cid[x["cid"]])
+            
+        plan.results_fn = rfun
+        plan.key_fn = kfun
+        with s.managed_session() as sess:
+            with sess.as_default():
+                x = plan.run(s, sess)
     else:
         print "ERROR: you must specify --input and --output, and either --train or --test and --model!"
+    shutil.rmtree(temppath)

@@ -1,5 +1,5 @@
 import gzip
-from sklearn import linear_model
+from sklearn import linear_model, metrics
 from sklearn.feature_extraction import DictVectorizer
 import pickle
 import codecs
@@ -48,7 +48,8 @@ if __name__ == "__main__":
         dv = DictVectorizer(sparse=True)
         X = dv.fit_transform(instances)
         label_lookup = {}
-        classifier = linear_model.LogisticRegression(class_weight="balanced", solver="sag")
+        #classifier = linear_model.LogisticRegressionCV(class_weight="balanced", solver="sag", scoring=metrics.f1_score, multi_class="multinomial", Cs=10)
+        classifier = linear_model.LogisticRegression(class_weight="balanced", solver="sag", multi_class="multinomial")
         for l in labels:
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
         logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))

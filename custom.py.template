@@ -7,12 +7,12 @@ DEFAULTS = {
     # This will run experiments with randomly-sampled subsets of
     # data in size 100, 200, 300...2000
     #"sizes" : range(1000, 2100, 100),
-    "sizes" : [1000, 2000, 4000, 8000, 16000, 32000, 64000],
+    "sizes" : range(1000, 64000, 1000), #[1000, 2000, 4000, 8000, 16000, 32000, 64000],
 
     # How many random data folds for each experiment (combination
     # of size and task).  The different models are run on the same
     # folds, i.e. "task X, fold Y" is the same for models A and B.
-    "folds" : 10,
+    "folds" : 3,
 
     # What proportion of the data is passed to the training script.
     # The remainder is used for testing.  Note that it is up to
@@ -25,9 +25,6 @@ DEFAULTS = {
 
 # A "task" is just a labeled data set.
 TASKS = [
-    #{"name" : "EnglishSpanishLID",
-    # "file" : "tasks/english_spanish_lid.txt.gz",     
-    #},    
     {"name" : "LID",
      "file" : "tasks/lid.txt.gz",     
     },    
@@ -39,7 +36,10 @@ TASKS = [
     },    
     {"name" : "Events",
      "file" : "tasks/events.txt.gz",     
-    },    
+    },
+    {"name" : "Age",
+     "file" : "tasks/age.txt.gz",     
+    },        
 ]
 
 # A "model" provides two commands: one for training, the other for
@@ -51,16 +51,16 @@ TASKS = [
 # string substitution syntax).
 MODELS = [
     
-    # {"name" : "NaiveBayes",
-    #  # ${SOURCES[0]} and ${SOURCES[1]}, are the training indices and
-    #  # input file, respectively, and ${TARGETS[0]} is the file where
-    #  # the model will be written.
-    #  "train_command" : "python models/naive_bayes_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram %(max_ngram)s",
-    #  # ${SOURCES[0]}, ${SOURCES[1]} and ${SOURCES[2]} are the model file,
-    #  # and input file, respectively, and ${TARGETS[0]} is the file to
-    #  # write the prediction probabilities to.
-    #  "apply_command" : "python models/naive_bayes_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
-    # },
+    {"name" : "NaiveBayes",
+     # ${SOURCES[0]} and ${SOURCES[1]}, are the training indices and
+     # input file, respectively, and ${TARGETS[0]} is the file where
+     # the model will be written.
+     "train_command" : "python models/naive_bayes_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram %(max_ngram)s",
+     # ${SOURCES[0]}, ${SOURCES[1]} and ${SOURCES[2]} are the model file,
+     # and input file, respectively, and ${TARGETS[0]} is the file to
+     # write the prediction probabilities to.
+     "apply_command" : "python models/naive_bayes_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+    },
 
     {"name" : "SVM",
      "train_command" : "python models/svm_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram %(max_ngram)s",
@@ -72,10 +72,10 @@ MODELS = [
      "apply_command" : "python models/valid_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
     },
 
-    # {"name" : "LogisticRegression",
-    #  "train_command" : "python models/logistic_regression_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram %(max_ngram)s",
-    #  "apply_command" : "python models/logistic_regression_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
-    # },
+    {"name" : "LogisticRegression",
+     "train_command" : "python models/logistic_regression_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram %(max_ngram)s",
+     "apply_command" : "python models/logistic_regression_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+    },
 
     {"name" : "FastText",
      "train_command" : "python models/fasttext_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --word_vector_size 5 --max_char_ngram %(max_ngram)s --max_word_ngram 2 --word_context_size 2",
@@ -83,10 +83,12 @@ MODELS = [
     },
 
     #{"name" : "Seal",
-    # "train_command" : "python models/seal_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]}",
-    # "apply_command" : "python models/seal_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+    # "train_command" : "python -m seal.fold --train_file ${SOURCES[0]} --data_file ${SOURCES[1]} --epochs 10 --output_file ${TARGETS[0]} --mode train",
+    # "apply_command" : "python -m seal.fold --model_file ${SOURCES[0]} --test_file ${SOURCES[1]} --data_file ${SOURCES[2]} --output_file ${TARGETS[0]} --mode infer",
     #},
 
 ]
 
-GRID = True
+MODELS = [k for k in MODELS if k["name"] in ["FastText", "SVM"]]
+TASKS = [t for t in TASKS]
+GRID = False

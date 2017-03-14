@@ -1,6 +1,7 @@
 import gzip
 import numpy
 import re
+from sklearn.metrics import f1_score
 
 if __name__ == "__main__":
 
@@ -10,7 +11,8 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", dest="output")
     parser.add_argument(nargs="+", dest="inputs")
     options = parser.parse_args()
-
+    
+    scores = {}
     accuracies = {}
     for f in options.inputs:
         task, model, size, fold = re.match(r"^work/(.*)_(.*)_(.*)_(.*)_results.txt.gz$", f).groups()
@@ -23,21 +25,26 @@ if __name__ == "__main__":
         trueneg = 0.0
         falseneg = 0.0
         with gzip.open(f) as ifd:
-            fields = ifd.readline().strip().split("\t")            
+            fields = ifd.readline().strip().split("\t")
+            y_true = []
+            y_pred = []
             for l in ifd:
                 toks = l.strip().split("\t")
                 cid, gold = toks[0:2]
-                scores = {k : float(v) for k, v in zip(fields[2:], toks[2:])}
-                guess = sorted([(v, k) for k, v in scores.iteritems()])[-1][1]
+                s = {k : float(v) for k, v in zip(fields[2:], toks[2:])}
+                guess = sorted([(v, k) for k, v in s.iteritems()])[-1][1]
+                y_true.append(gold)
+                y_pred.append(guess)
                 if gold == guess:
                     correct += 1.0
                 else:
                     incorrect += 1.0
                         
             key = (task, size, model, fold)
+            scores[key] = scores.get(key, []) + [f1_score(y_true=y_true, y_pred=y_pred, average="macro")]
             accuracies[key] = accuracies.get(key, []) + [correct / (correct + incorrect)]
 
     with gzip.open(options.output, "w") as ofd:
-        for (task, size, model, fold), a in sorted(accuracies.iteritems()):
+        for (task, size, model, fold), a in sorted(scores.iteritems()):
             ss = numpy.array(a)
             ofd.write("\t".join([task, model, str(size), str(fold), "%.3f" % (ss.mean())]) + "\n")
