@@ -10,9 +10,7 @@ import shlex
 import shutil
 import math
 import re
-
-writer = codecs.getwriter("utf-8")
-reader = codecs.getreader("utf-8")
+from data_io import read_data, write_probabilities, writer, reader
 
 if __name__ == "__main__":
     
@@ -55,27 +53,19 @@ if __name__ == "__main__":
 
     # training
     if options.train and options.output and options.input:
-        with reader(gzip.open(options.train)) as ifd:
-            indices = [int(l.strip()) for l in ifd]
-        indices = set(indices)
-        instances, labels = [], []        
-        with reader(gzip.open(options.input)) as ifd:
-            for i, line in enumerate(ifd):
-                if i in indices:
-                    cid, label, text = line.strip().split("\t")
-                    instances.append(text)
-                    labels.append(label)
+        data = read_data(options.input, options.train)
+        instances = [x[2] for x in data]
         _, model_fname = tempfile.mkstemp(suffix=".bin")
         base_fname = os.path.splitext(model_fname)[0]
         vec_fname = "%s.vec" % (base_fname)
         _, input_fname = tempfile.mkstemp()
         label_lookup = {}
-        for l in labels:
+        for _, l, _ in data:
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
         with writer(open(input_fname, "w")) as ofd:
-            for label, text in zip(labels, instances):
+            for _, label, text in data:
                 ofd.write("__label__%s %s\n" % (label, text))
-        logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
+        logging.info("Training with %d instances, %d labels", len(data), len(label_lookup))
         args["input_file"] = input_fname
         args["output_file"] = base_fname
         toks = shlex.split(train_command % args)
@@ -87,20 +77,15 @@ if __name__ == "__main__":
 
     # testing
     elif options.test and options.model and options.output and options.input:
-        with reader(gzip.open(options.test)) as ifd:
-            indices = [int(l.strip()) for l in ifd]
-        indices = set(indices)
         instances, gold = [], []
         labels = set()
         _, test_fname = tempfile.mkstemp()
-        with reader(gzip.open(options.input)) as ifd, writer(open(test_fname, "w")) as ofd:
-            for i, line in enumerate(ifd):
-                if i in indices:
-                    cid, label, text = line.strip().split("\t")
-                    instances.append(text)
-                    gold.append((cid, label))
-                    ofd.write(text + "\n")
-                    labels.add(label)
+        with writer(open(test_fname, "w")) as ofd:
+            for cid, label, text in read_data(options.input, options.test):
+                instances.append(text)
+                gold.append((cid, label))
+                ofd.write(text + "\n")
+                labels.add(label)
         
         logging.info("Testing with %d instances", len(instances))
         args["num_labels"] = 100
@@ -115,10 +100,6 @@ if __name__ == "__main__":
             for k in probs.keys():
                 labels.add(k)
             data[cid] = (label, probs)
-        codes = sorted(labels)
-        with writer(gzip.open(options.output, "w")) as ofd:
-            ofd.write("\t".join(["DOC", "GOLD"] + codes) + "\n")
-            for cid, (label, probs) in data.iteritems():
-                ofd.write("\t".join([cid, label] + [str(probs.get(c, float("-inf"))) for c in codes]) + "\n")
+        write_probabilities(data, options.output)
     else:
         print "ERROR: you must specify --input and --output, and either --train or --test and --model!"

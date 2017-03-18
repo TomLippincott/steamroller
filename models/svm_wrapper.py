@@ -5,18 +5,7 @@ import pickle
 import codecs
 import logging
 from itertools import chain
-
-writer = codecs.getwriter("utf-8")
-reader = codecs.getreader("utf-8")
-
-def _extract_character_ngrams(text, n):
-    stack = ["NULL" for _ in range(n)]
-    ngrams = {}
-    for c in text:
-        stack = stack[1:]
-        stack.append(c)
-        ngrams[tuple(stack)] = ngrams.get(tuple(stack), 0) + 1
-    return list(ngrams.iteritems())
+from data_io import read_data, write_probabilities, writer, reader, extract_character_ngrams
 
 if __name__ == "__main__":
 
@@ -35,20 +24,14 @@ if __name__ == "__main__":
     
     # training
     if options.train and options.output and options.input:
-        with reader(gzip.open(options.train)) as ifd:
-            indices = [int(l.strip()) for l in ifd]
-        indices = set(indices)
         instances, labels = [], []        
-        with reader(gzip.open(options.input)) as ifd:
-            for i, line in enumerate(ifd):
-                if i in indices:
-                    cid, label, text = line.strip().split("\t")
-                    instances.append(dict(sum([_extract_character_ngrams(text, options.max_ngram) for n in range(1, options.max_ngram + 1)], [])))
-                    labels.append(label)
+        for cid, label, text in read_data(options.input, options.train):
+            instances.append(dict(sum([extract_character_ngrams(text, options.max_ngram) for n in range(1, options.max_ngram + 1)], [])))
+            labels.append(label)
         dv = DictVectorizer(sparse=True)
         X = dv.fit_transform(instances)
         label_lookup = {}
-        classifier = svm.SVC(probability=True)#, class_weight="balanced")
+        classifier = svm.SVC(probability=True)
         for l in labels:
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
         logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
@@ -60,24 +43,15 @@ if __name__ == "__main__":
     elif options.test and options.model and options.output and options.input:
         with gzip.open(options.model) as ifd:
             classifier, dv, label_lookup = pickle.load(ifd)
-        with reader(gzip.open(options.test)) as ifd:
-            indices = [int(l.strip()) for l in ifd]
-        indices = set(indices)
         instances, gold = [], []
-        with reader(gzip.open(options.input)) as ifd:
-            for i, line in enumerate(ifd):
-                if i in indices:
-                    cid, label, text = line.strip().split("\t")
-                    instances.append(dict(sum([_extract_character_ngrams(text, options.max_ngram) for n in range(1, options.max_ngram + 1)], [])))
-                    gold.append((cid, label))
+        for cid, label, text in read_data(options.input, options.test):
+            instances.append(dict(sum([extract_character_ngrams(text, options.max_ngram) for n in range(1, options.max_ngram + 1)], [])))
+            gold.append((cid, label))
         logging.info("Testing with %d instances, %d labels", len(instances), len(label_lookup))
         X = dv.transform(instances)
         inv_label_lookup = {v : k for k, v in label_lookup.iteritems()}
-        y = [classifier.predict_log_proba(x) for x in X]
-        with writer(gzip.open(options.output, "w")) as ofd:
-            ofd.write("\t".join(["ID", "GOLD"] + [inv_label_lookup[i] for i in range(len(inv_label_lookup))]) + "\n")
-            for probs, (cid, gold) in zip(y, gold):
-                ofd.write("\t".join([cid, gold] + ["%f" % x for x in probs.flatten()]) + "\n")
-    
-    else:
-        print "ERROR: you must specify --input and --output, and either --train or --test and --model!"
+        data = {}
+        order = [inv_label_lookup[i] for i in range(len(inv_label_lookup))]
+        for probs, (cid, g) in zip([classifier.predict_log_proba(x) for x in X], gold):
+            data[cid] = (g, {k : v for k, v in zip(order, probs.flatten())})
+        write_probabilities(data, options.output)

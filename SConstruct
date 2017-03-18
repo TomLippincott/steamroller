@@ -12,6 +12,7 @@ vars.AddVariables(
     ("DEFAULTS", "General variables (potentially overridden by models and tasks)", {}),
     ("MODELS", "Classification models to compare", []),
     ("TASKS", "Classification tasks", []),
+    ("TEST_COUNT", "Classification tasks", 32000),
     BoolVariable("GRID", "Do we have access to a grid via the qsub command?", False),
 )
 
@@ -34,17 +35,18 @@ logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S
 def qsub(command, dep_ids=[], resources=[]):
     deps = "" if len(dep_ids) == 0 else "-hold_jid %s" % (",".join([str(x) for x in dep_ids]))
     res = "" if len(resources) == 0 else "-l %s" % (",".join([str(x) for x in resources]))
-    qcommand = "qsub -b y -cwd -j y -terse -o output.out %s %s %s" % (deps, res, command)
+    qcommand = "qsub -v PYTHONPATH -b y -cwd -j y -terse -o output.out %s %s %s" % (deps, res, command)
     p = subprocess.Popen(shlex.split(qcommand), stdout=subprocess.PIPE)
     out, err = p.communicate()
     return int(out.strip())
 
 
-def GridWrapper(command):
+def GridWrapper(command, resources=["qname=all.q"]):
+    command = "/usr/bin/time -f '${TARGETS[0]} %e %M' " + command
     if env["GRID"] and isinstance(command, basestring):
         def grid_method(target, source, env):
             depends_on = set(filter(lambda x : x != None, [s.GetTag("built_by_job") for s in source]))
-            job_id = qsub(env.subst(command, source=source, target=target), depends_on, [])
+            job_id = qsub(env.subst(command, source=source, target=target), depends_on, resources)
             for t in target:
                 t.Tag("built_by_job", job_id)
             print "Job %d depends on %s" % (job_id, depends_on)
@@ -59,7 +61,7 @@ defaults = env["DEFAULTS"]
 
 for name, command in [
        ("GetCount", "python tools/get_count.py --input ${SOURCES[0]} --output ${TARGETS[0]}"),
-       ("CreateSplit", "python tools/create_split.py --total_file ${SOURCES[0]} --size ${SOURCES[1].read()} --proportion ${SOURCES[2].read()} --train ${TARGETS[0]} --test ${TARGETS[1]}"),
+       ("CreateSplit", "python tools/create_split.py --total_file ${SOURCES[0]} --train_count ${SOURCES[1].read()} --test_count ${TEST_COUNT} --train ${TARGETS[0]} --test ${TARGETS[1]}"),
        ("Evaluate", "python tools/evaluate.py -o ${TARGETS[0]} ${SOURCES}"),
        ("Plot", "python tools/plot.py -o ${TARGETS[0]} ${SOURCES}"),
        ]:
@@ -110,4 +112,3 @@ for task in env["TASKS"]:
     if len(classified_items) > 0:
         scores = env.Evaluate("work/%s_scores.txt.gz" % (task_name), classified_items)
         plots = env.Plot("work/%s_plot.png" % (task_name), scores)
-        

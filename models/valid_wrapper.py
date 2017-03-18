@@ -5,9 +5,8 @@ from itertools import chain
 import pickle
 import logging
 import math
-
-writer = codecs.getwriter("utf-8")
-reader = codecs.getreader("utf-8")
+import numpy
+from data_io import read_data, write_probabilities, writer, reader
 
 if __name__ == "__main__":
 
@@ -26,19 +25,12 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     
     if options.train and options.output and options.input:
-        with reader(gzip.open(options.train)) as ifd:
-            indices = [int(l.strip()) for l in ifd]
-        indices = set(indices)
-        instances, labels = [], []
         compressors = {}
         counts = {}
-        with reader(gzip.open(options.input)) as ifd:
-            for i, line in enumerate(ifd):
-                if i in indices:
-                    cid, label, text = line.strip().split("\t")
-                    counts[label] = counts.get(label, 0) + 1
-                    compressors[label] = compressors.get(label, Compressor(label, options.max_ngram))
-                    compressors[label].add(text)
+        for cid, label, text in read_data(options.input, options.train):
+            counts[label] = counts.get(label, 0) + 1
+            compressors[label] = compressors.get(label, Compressor(label, options.max_ngram))
+            compressors[label].add(text)
 
         model = LidClassifier()
         for l, c in compressors.iteritems():
@@ -49,26 +41,20 @@ if __name__ == "__main__":
 
     # testing
     elif options.test and options.model and options.output and options.input:
-        with reader(gzip.open(options.test)) as ifd:
-            indices = [int(l.strip()) for l in ifd]
-        indices = set(indices)
         instances, gold = [], []
-        with reader(gzip.open(options.input)) as ifd:
-            for i, line in enumerate(ifd):
-                if i in indices:
-                    cid, label, text = line.strip().split("\t")
-                    instances.append(text)
-                    gold.append((cid, label))
+        for cid, label, text in read_data(options.input, options.test):
+            instances.append(text)
+            gold.append((cid, label))
         
         with gzip.open(options.model) as ifd:
             model, counts = pickle.load(ifd)
         total = sum(counts.values())
         prior = {k : math.log(v / float(total)) for k, v in counts.iteritems()}
         codes = model.compressors.keys()
-        logging.info("Testing with %d instances, %d labels", len(instances), len(codes))            
-        with writer(gzip.open(options.output, "w")) as ofd:
-            ofd.write("\t".join(["DOC", "GOLD"] + codes) + "\n")
-            for (cid, label), text in zip(gold, instances):
-                probs = model.classify(text)
-                ofd.write("\t".join([cid, label] + ["%f" % (probs[l] + prior[l]) for l in codes]) + "\n")
-
+        logging.info("Testing with %d instances, %d labels", len(instances), len(codes))
+        data = {}
+        for (cid, label), text in zip(gold, instances):
+            probs = {k : v + prior[k] for k, v in model.classify(text).iteritems()}
+            total = reduce(numpy.logaddexp, probs.values())
+            data[cid] = (label, probs)
+        write_probabilities(data, options.output)

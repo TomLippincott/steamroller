@@ -7,12 +7,12 @@ DEFAULTS = {
     # This will run experiments with randomly-sampled subsets of
     # data in size 100, 200, 300...2000
     #"sizes" : range(1000, 2100, 100),
-    "sizes" : range(1000, 64000, 1000), #[1000, 2000, 4000, 8000, 16000, 32000, 64000],
+    "sizes" : [1000, 2000, 4000, 8000, 16000, 32000], #, 64000],
 
     # How many random data folds for each experiment (combination
     # of size and task).  The different models are run on the same
     # folds, i.e. "task X, fold Y" is the same for models A and B.
-    "folds" : 3,
+    "folds" : 5,
 
     # What proportion of the data is passed to the training script.
     # The remainder is used for testing.  Note that it is up to
@@ -89,6 +89,6 @@ MODELS = [
 
 ]
 
-MODELS = [k for k in MODELS if k["name"] in ["FastText", "SVM"]]
+MODELS = [k for k in MODELS] # if k["name"] in ["FastText", "SVM"]]
 TASKS = [t for t in TASKS]
 GRID = False
