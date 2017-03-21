@@ -22,11 +22,7 @@ import shutil
 import os.path
 import tarfile
 from glob import glob
-
-
-writer = codecs.getwriter("utf-8")
-reader = codecs.getreader("utf-8")
-
+from data_io import read_data, write_probabilities, writer, reader
 
 _OPTIMIZER_CLASSES = {
     'adadelta': tf.train.AdadeltaOptimizer,
@@ -38,7 +34,6 @@ _OPTIMIZER_CLASSES = {
     'momentum': tf.train.MomentumOptimizer,
     'rmsprop': tf.train.RMSPropOptimizer,
 }
-
 
 def get_cell_fn(cell_type, cell_args):
     cell_fn = None
@@ -55,7 +50,6 @@ def get_cell_fn(cell_type, cell_args):
     else:
         raise Exception("unsupported cell type: {}".format(cell_type))
     return cell_fn
-
 
     class AttentionLayer(td.TensorToTensorLayer):
         def __init__(self, num_units_out, name=None):
@@ -270,11 +264,10 @@ if __name__ == "__main__":
     options = parser.parse_args()
 
     
-    td.define_plan_flags(default_plan_name='seal')
+    #td.define_plan_flags(default_plan_name='seal')
     FLAGS = tf.app.flags.FLAGS
 
     
-
     def setup_plan(plan, train, dev):
         if plan.mode != 'train': raise ValueError('only train mode supported')
 
@@ -341,21 +334,22 @@ if __name__ == "__main__":
         
         cid_lookup, sym_lookup, label_lookup = {"unk" : 0}, {"unk" : 0}, {"cid" : 0}
         train, dev = [], []
-        with reader(gzip.open(options.train)) as ifd:
-            indices = [int(l.strip()) for l in ifd]
-        indices = set(indices)
+        #with reader(gzip.open(options.train)) as ifd:
+        #    indices = [int(l.strip()) for l in ifd]
+        #indices = set(indices)
         instances, labels = [], []        
-        with reader(gzip.open(options.input)) as ifd:
-            for i, line in enumerate(ifd):
-                if i in indices:
-                    cid, label, text = line.strip().split("\t")
-                    label_lookup[label] = label_lookup.get(label, len(label_lookup))
-                    cid_lookup[cid] = label_lookup.get(cid, len(cid_lookup))
-                    syms = []
-                    for c in text:
-                        sym_lookup[c] = sym_lookup.get(c, len(sym_lookup))
-                        syms.append(sym_lookup[c])
-                    instances.append((label_lookup[label], syms, cid_lookup[cid]))
+        #with reader(gzip.open(options.input)) as ifd:
+        #    for i, line in enumerate(ifd):
+        #        if i in indices:
+        #            cid, label, text = line.strip().split("\t")
+        for cid, label, text in read_data(options.input, options.train):
+            label_lookup[label] = label_lookup.get(label, len(label_lookup))
+            cid_lookup[cid] = label_lookup.get(cid, len(cid_lookup))
+            syms = []
+            for c in text:
+                sym_lookup[c] = sym_lookup.get(c, len(sym_lookup))
+                syms.append(sym_lookup[c])
+            instances.append((label_lookup[label], syms, cid_lookup[cid]))
         logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
         plan = td.TrainPlan()
         plan.num_multiprocess_processes = 0
@@ -474,21 +468,22 @@ if __name__ == "__main__":
 
         
         test = []
-        with reader(gzip.open(options.test)) as ifd:
-            indices = [int(l.strip()) for l in ifd]
-        indices = set(indices)
+        #with reader(gzip.open(options.test)) as ifd:
+        #    indices = [int(l.strip()) for l in ifd]
+        #indices = set(indices)
         instances, labels = [], []
-        with reader(gzip.open(options.input)) as ifd:
-            for i, line in enumerate(ifd):
-                if i in indices:
-                    cid, label, text = line.strip().split("\t")
-                    cid_lookup[cid] = label_lookup.get(cid, len(cid_lookup))
-                    syms = []
-                    for c in text:
-                        syms.append(sym_lookup.get(c, 0))
-                    instances.append((label_lookup.get(label, 0), syms, cid_lookup[cid]))
+        #with reader(gzip.open(options.input)) as ifd:
+        #    for i, line in enumerate(ifd):
+        #        if i in indices:
+        #            cid, label, text = line.strip().split("\t")
+        for cid, label, text in read_data(options.input, options.test):
+            cid_lookup[cid] = label_lookup.get(cid, len(cid_lookup))
+            syms = []
+            for c in text:
+                syms.append(sym_lookup.get(c, 0))
+            instances.append((label_lookup.get(label, 0), syms, cid_lookup[cid]))
         logging.info("Testing with %d instances, %d labels", len(instances), len(label_lookup))
-
+        
         plan.compiler = td.Compiler.create(root_block)
         logits, labels = plan.compiler.output_tensors
         cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -545,13 +540,12 @@ if __name__ == "__main__":
                 for (gold, cid), (probs,) in res:
                     ofd.write("\t".join([cid, gold] + ["%f" % x for x in probs.flatten()]) + "\n")
         def kfun(x):
-            return (id_to_label[x["label"]], id_to_cid[x["cid"]])
+            return (id_to_label[x["label"]], id_to_cid.get(x["cid"], "?"))
             
         plan.results_fn = rfun
         plan.key_fn = kfun
         with s.managed_session() as sess:
             with sess.as_default():
                 x = plan.run(s, sess)
-    else:
-        print "ERROR: you must specify --input and --output, and either --train or --test and --model!"
+
     shutil.rmtree(temppath)

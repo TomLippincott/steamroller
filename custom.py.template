@@ -3,22 +3,14 @@
 # smaller data set where `sizes` ranges too high, so you could
 # override it in that task definition.
 DEFAULTS = {
-    # What data sizes (number of documents) to run experiments with.
-    # This will run experiments with randomly-sampled subsets of
-    # data in size 100, 200, 300...2000
-    #"sizes" : range(1000, 2100, 100),
-    "sizes" : [1000, 2000, 4000, 8000, 16000, 32000], #, 64000],
+    # What training sizes (number of documents) to run experiments with.
+    "sizes" : [1000, 2000, 4000, 8000, 16000, 32000],
 
     # How many random data folds for each experiment (combination
     # of size and task).  The different models are run on the same
     # folds, i.e. "task X, fold Y" is the same for models A and B.
-    "folds" : 5,
+    "folds" : 3,
 
-    # What proportion of the data is passed to the training script.
-    # The remainder is used for testing.  Note that it is up to
-    # the training script to split out e.g. a development set.
-    "train_proportion" : 0.9,
-    
     # This is a parameter used by the Naive Bayes model (see below).
     "max_ngram" : 4,
 }
@@ -26,16 +18,16 @@ DEFAULTS = {
 # A "task" is just a labeled data set.
 TASKS = [
     {"name" : "LID",
-     "file" : "tasks/lid.txt.gz",     
+    "file" : "tasks/lid.txt.gz",     
     },    
     {"name" : "Politics",
-     "file" : "tasks/politics.txt.gz",     
+    "file" : "tasks/politics.txt.gz",     
     },    
     {"name" : "Gender",
-     "file" : "tasks/gender.txt.gz",     
+    "file" : "tasks/gender.txt.gz",     
     },    
     {"name" : "Events",
-     "file" : "tasks/events.txt.gz",     
+    "file" : "tasks/events.txt.gz",     
     },
     {"name" : "Age",
      "file" : "tasks/age.txt.gz",     
@@ -82,13 +74,24 @@ MODELS = [
      "apply_command" : "python models/fasttext_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
     },
 
-    #{"name" : "Seal",
-    # "train_command" : "python -m seal.fold --train_file ${SOURCES[0]} --data_file ${SOURCES[1]} --epochs 10 --output_file ${TARGETS[0]} --mode train",
-    # "apply_command" : "python -m seal.fold --model_file ${SOURCES[0]} --test_file ${SOURCES[1]} --data_file ${SOURCES[2]} --output_file ${TARGETS[0]} --mode infer",
-    #},
+    {"name" : "Seal",
+     "train_command" : "python models/seal_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --epochs 100",
+     "apply_command" : "python models/seal_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+    },
 
+    {"name" : "Prior",
+     "train_command" : "python models/prior_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]}",
+     "apply_command" : "python models/prior_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+    }    
+
+    
 ]
 
-MODELS = [k for k in MODELS] # if k["name"] in ["FastText", "SVM"]]
-TASKS = [t for t in TASKS]
+#
+# If desired, you can filter out models and tasks here.
+#
+MODELS = [k for k in MODELS if k["name"]] # in ["Seal"]] #, "NaiveBayes", "VaLID", "LogisticRegression", "SVM"]] #, "Seal"]]
+TASKS = [t for t in TASKS if t["name"]] # in ["Age"]] #, "LID", "Politics", "Gender", "Events"]]
+
+# Whether to distribute processing across a PBS system via 'qsub' et al.
 GRID = False
