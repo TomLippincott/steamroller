@@ -41,8 +41,8 @@ def qsub(command, dep_ids=[], resources=[]):
     return int(out.strip())
 
 
-def GridWrapper(command, resources=["qname=all.q"]):
-    command = "/usr/bin/time -f '${TARGETS[0]} %e %M' " + command
+def GridWrapper(command, resources=[]): #["qname=all.q"]):
+    #command = "/usr/bin/time -f '${TARGETS[0]} %e %M' " + command
     if env["GRID"] and isinstance(command, basestring):
         def grid_method(target, source, env):
             depends_on = set(filter(lambda x : x != None, [s.GetTag("built_by_job") for s in source]))

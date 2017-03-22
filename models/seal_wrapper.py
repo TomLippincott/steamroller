@@ -332,16 +332,9 @@ if __name__ == "__main__":
 
         
         
-        cid_lookup, sym_lookup, label_lookup = {"unk" : 0}, {"unk" : 0}, {"cid" : 0}
+        cid_lookup, sym_lookup, label_lookup = {"unk" : 0}, {"unk" : 0}, {} #{"unk" : 0}
         train, dev = [], []
-        #with reader(gzip.open(options.train)) as ifd:
-        #    indices = [int(l.strip()) for l in ifd]
-        #indices = set(indices)
         instances, labels = [], []        
-        #with reader(gzip.open(options.input)) as ifd:
-        #    for i, line in enumerate(ifd):
-        #        if i in indices:
-        #            cid, label, text = line.strip().split("\t")
         for cid, label, text in read_data(options.input, options.train):
             label_lookup[label] = label_lookup.get(label, len(label_lookup))
             cid_lookup[cid] = label_lookup.get(cid, len(cid_lookup))
@@ -409,11 +402,10 @@ if __name__ == "__main__":
         plan.logdir = temppath
         #plan.batch_size = 32
         plan.finalize_stats()
-        s = tf.train.Supervisor()
-        #sess = 
-        with s.managed_session() as sess:
+        supervisor = tf.train.Supervisor()
+        with supervisor.managed_session() as sess:
             with sess.as_default():
-                plan.run(s, sess)
+                plan.run(supervisor, sess)
                 #s = tf.train.Saver(tf.global_variables())
                 #print s.save(sess, options.output)
 
@@ -532,7 +524,7 @@ if __name__ == "__main__":
         plan.logdir = "temp/"
         plan.logdir_restore = "temp/"
         plan.finalize_stats()
-        s = tf.train.Supervisor()
+
         id_to_cid = {v : k for k, v in cid_lookup.iteritems()}
         def rfun(res):
             with writer(gzip.open(options.output, "w")) as ofd:
@@ -541,11 +533,12 @@ if __name__ == "__main__":
                     ofd.write("\t".join([cid, gold] + ["%f" % x for x in probs.flatten()]) + "\n")
         def kfun(x):
             return (id_to_label[x["label"]], id_to_cid.get(x["cid"], "?"))
-            
+
+        supervisor = tf.train.Supervisor()            
         plan.results_fn = rfun
         plan.key_fn = kfun
-        with s.managed_session() as sess:
+        with supervisor.managed_session() as sess:
             with sess.as_default():
-                x = plan.run(s, sess)
+                x = plan.run(supervisor, sess)
 
     shutil.rmtree(temppath)
