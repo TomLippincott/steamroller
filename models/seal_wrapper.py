@@ -3,232 +3,302 @@ import gzip
 import pickle
 import codecs
 import logging
+from functools import partial
 from itertools import chain
 import random
-import tensorflow as tf
-import numpy as np
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import variable_scope as vs
-import tensorflow_fold as td
-import tensorflow_fold.blocks.blocks
-import tensorflow_fold.blocks.result_types as tdt
-from tensorflow_fold.blocks.plan import build_optimizer_from_params
-import tensorflow.contrib.seq2seq as seq2seq
-from seal import data
-from tqdm import tqdm
 import tempfile
 import shutil
 import os.path
 import tarfile
 from glob import glob
-from data_io import read_data, write_probabilities, writer, reader
-
-_OPTIMIZER_CLASSES = {
-    'adadelta': tf.train.AdadeltaOptimizer,
-    'adagradda': tf.train.AdagradDAOptimizer,
-    'adagrad': tf.train.AdagradOptimizer,
-    'adam': tf.train.AdamOptimizer,
-    'ftrl': tf.train.FtrlOptimizer,
-    'gradientdescent': tf.train.GradientDescentOptimizer,
-    'momentum': tf.train.MomentumOptimizer,
-    'rmsprop': tf.train.RMSPropOptimizer,
-}
-
-def get_cell_fn(cell_type, cell_args):
-    cell_fn = None
-    if cell_type == 'gru':
-        cell_fn = tf.contrib.rnn.GRUCell
-    elif cell_type == 'lstm':
-        cell_fn = tf.contrib.rnn.LSTMCell
-    elif cell_type == 'gridlstm':
-        cell_fn = tf.contrib.grid_rnn.Grid2LSTMCell
-        cell_args['use_peepholes'] = True
-        cell_args['forget_bias'] = 1.0
-    elif cell_type == 'gridgru':
-        cell_fn = tf.contrib.grid_rnn.Grid2GRUCell
-    else:
-        raise Exception("unsupported cell type: {}".format(cell_type))
-    return cell_fn
-
-    class AttentionLayer(td.TensorToTensorLayer):
-        def __init__(self, num_units_out, name=None):
-            self._activation = tf.tanh
-            self._initializer = tf.uniform_unit_scaling_initializer(1.15)
-            self._num_units_out = num_units_out
-            if name is None: name = 'AttentionLayer_%d' % num_units_out
-            super(AttentionLayer, self).__init__(
-                output_type=tdt.TensorType([num_units_out]), name_or_scope=name)
-
-        @property
-        def output_size(self):
-            return self.output_type.shape[0]
-
-        def _create_variables(self):
-            if self.input_type.dtype != 'float32':
-                raise TypeError('AttentionLayer input dtype must be float32: %s' %
-                                self.input_type.dtype)
-            if self.input_type.ndim != 1:
-                raise TypeError('AttentionLayer input shape must be 1D: %s' %
-                                str(self.input_type.shape))
-            self._attn_v = tf.get_variable(
-                'attn_v', [self.output_type.shape[0]],
-                initializer=tf.truncated_normal_initializer(stddev=0.01))
-            self._attn_W = tf.get_variable(
-                'attn_W', [self.input_type.shape[0], self.output_type.shape[0]],
-                initializer=self._initializer)
-
-        def _process_batch(self, batch):
-            return self._attn_v * self._activation(tf.matmul(batch, self._attn_W))
-
-    def Attention(num_units, name=None):
-        attention = td.Composition(name=name)
-        with attention.scope():
-            a = td.Function(AttentionLayer(num_units))
-            h = attention.input
-            exp_e = td.Map(a >> td.Function(tf.exp)).reads(h)
-            z = (td.Sum() >> td.Broadcast()).reads(exp_e)
-            alpha = td.ZipWith(td.Function(tf.div)).reads(exp_e, z)
-            c = (td.ZipWith(td.Function(tf.multiply)) >> td.Sum()).reads(alpha, h)
-            attention.output.reads(c)
-        return attention.set_constructor_name('Attention')
+import tensorflow as tf
+from tensorflow.python.ops import math_ops, array_ops
+from tensorflow.python.ops import variable_scope as vs
+import tensorflow.contrib.seq2seq as seq2seq
+import tensorflow_fold as td
+import tensorflow_fold.blocks.blocks
+import tensorflow_fold.blocks.result_types as tdt
+from tensorflow_fold.blocks.plan import build_optimizer_from_params
+from tqdm import tqdm
+import numpy
 
 
-# Either attention or last state
-def sequence_to_tensor(rnn_output, num_units, attention):
-    if attention == 'last':
-        print('[sequence to tensor] last state')
-        final_state = rnn_output >> td.GetItem(1)
-        return final_state
-    elif attention == 'mixture':
-        print('[sequence to tensor] attention')
-        rnn_states = rnn_output >> td.GetItem(0)
-        return rnn_states >> Attention(num_units)
+#
+# Data-loading functions (can probably skip this)
+#
 
 
-def create_flat_model(num_letters, num_labels, args):
-    print('{} letters {} labels'.format(num_letters, num_labels))
+writer = codecs.getwriter("utf-8")
+reader = codecs.getreader("utf-8")
 
-    # Create a placeholder for dropout, if we are in train mode.
-    #keep_prob = (tf.placeholder_with_default(1.0, [], name='keep_prob')
-    #             if plan.mode == plan.mode_keys.TRAIN else None)
-    keep_prob = True
 
-    char_cells = []
-    for l in range(args.char_rnn_layer):
-        cell_args = {'num_units': args.char_state_vector_length}
-        cell_fn = get_cell_fn("gru", cell_args) #FLAGS.char_cell_type, cell_args)
-        char_cell = cell_fn(**cell_args)
-        char_cell = tf.contrib.rnn.DropoutWrapper(char_cell,
-                                                  input_keep_prob=keep_prob,
-                                                  output_keep_prob=keep_prob)
-        char_cell = td.ScopedLayer(char_cell, 'char_cell_{}'.format(l))
-        char_cells.append(char_cell)
+def read_data(data_file, num_file, tag_type="attribute"):
+    """
+    Read in communications from a TSV or Concrete file @data_file, only keeping the communications
+    specified in @num_file.  If Concrete, @tag_type specifies what CommunicationTagging to use
+    as the label.
+    """
+    conc = data_file.endswith("tgz")
+    nums = set()
+    with gzip.open(num_file) as ifd:
+        for n in ifd:
+            nums.add(int(n.rstrip("\n")))
+    label_counts = {}
+    items = []
+    ifd = CommunicationReader(data_file) if conc else reader(gzip.open(data_file))    
+    for n, item in enumerate(ifd):
+        if n in nums:
+            if conc:
+                text = item[0].text
+                cid = item[0].id
+                label = [t for t in item[0].communicationTaggingList if
+                         t.taggingType == tag_type and t.metadata.tool == "Gold labeling"][0].tagList[0]
+            else:
+                cid, label, text = item.rstrip("\n").split("\t")
+            label_counts[label] = label_counts.get(label, 0) + 1
+            items.append((cid, label, text))
+    logging.info("Read %d Communications", len(items))
+    logging.info("Label counts: %s", " ".join(["%s=%d" % (k, v) for k, v in sorted(label_counts.iteritems())]))
+    return items
 
-    # Character-level stacked RNN
-    char_embed = (td.Map(td.Scalar(tf.int64) >>
-                         td.Function(td.Embedding(num_letters,
-                                                  #512,
-                                                  args.char_embed_vector_length,
-                                                  name='char_embed'))))
-    char_rnn = char_embed >> td.RNN(char_cells[0])
-    for l in range(1, args.char_rnn_layer):
-        char_rnn >>= td.GetItem(0) >> td.RNN(char_cells[l])
 
-    context = sequence_to_tensor(char_rnn,
-                                 args.char_state_vector_length,
-                                 args.attention
+def instances_and_lookups(input_file, index_file, sym_lookup={"unk" : 0}, label_lookup={"unk" : 0}):
+    """
+    Read communications and create integer encodings for them, along with lookups to recover the
+    strings.  "unk" is mapped to 0 for both symbols and labels, to handle OOV at test time.  If
+    symbol or label lookups are passed to the function, does *not* update the lookups and encodes
+    unseen items as "unk".
+
+    In other words, when reading training data, don't pass lookups.  When reading test data, pass in
+    the lookups from the training data.
+    """
+    assert(sym_lookup["unk"] == 0 and label_lookup["unk"] == 0)
+    update_sym = len(sym_lookup) == 1
+    update_label = len(label_lookup) == 1
+    cid_lookup = {}
+    instances, labels = [], []
+    unk_sym_occs, unk_sym_types = 0, set()
+    unk_label_occs, unk_label_types = 0, set()
+    for cid, label, text in read_data(options.input, options.train if options.train else options.test):
+        if update_label:
+            label_lookup[label] = label_lookup.get(label, len(label_lookup))
+        cid_lookup[cid] = label_lookup.get(cid, len(cid_lookup))
+        syms = []
+        for c in text:
+            if update_sym:
+                sym_lookup[c] = sym_lookup.get(c, len(sym_lookup))
+            syms.append(sym_lookup.get(c, 0))
+            if syms[-1] == 0:
+                unk_sym_types.add(c)
+                unk_sym_occs += 1
+        instances.append((label_lookup.get(label, 0), syms, cid_lookup[cid]))
+        if instances[-1][0] == 0:
+            unk_sym_types.add(label)
+            unk_label_occs += 1            
+    logging.info("Loaded %d instances, %d labels", len(instances), len(label_lookup))
+    logging.info("%d/%d unknown symbol occurrences/types, %d/%d unknown label occurences/types",
+                 unk_sym_occs,
+                 len(unk_sym_types),
+                 unk_label_occs,
+                 len(unk_label_types),                 
     )
-                                 #FLAGS.char_state_vector_length)
-    output_layer = context >> td.FC(num_labels,
-                                    activation=None,
-                                    input_keep_prob=keep_prob,
-                                    name='output_layer')
-
-    label = td.Scalar(tf.int64)
-    root_block = td.Record([('text', output_layer),
-                            ('label', label)])
-
-    # Turn dropout on for training, off for validation.
-    #plan.train_feeds[keep_prob] = True #FLAGS.keep_prob
-
-    return root_block
+    return instances, cid_lookup, sym_lookup, label_lookup
 
 
-def create_hierarchical_model(num_letters, num_labels, args):
-    # Create a placeholder for dropout, if we are in train mode.
-    #keep_prob = (tf.placeholder_with_default(1.0, [], name='keep_prob')
-    #             if plan.mode == plan.mode_keys.TRAIN else None)
-    keep_prob = True
+def write_probabilities(data, output_file):
+    """
+    Takes a dictionary with entries like:
 
-    char_cells = []
-    for l in range(args.char_rnn_layer):
-        cell_args = {'num_units': args.char_state_vector_length}
-        cell_fn = get_cell_fn("gru", args.char_cell_type, cell_args)
-        char_cell = cell_fn(**cell_args)
-        char_cell = tf.contrib.rnn.DropoutWrapper(char_cell,
-                                                  input_keep_prob=keep_prob)
-        char_cell = td.ScopedLayer(char_cell, 'char_cell_{}'.format(l))
-        char_cells.append(char_cell)
+      DOCID : (GOLD, {LAB1 : logprob, LAB2 : logprob ... }
 
-    word_cells = []
-    for l in range(args.word_rnn_layer):
-        cell_args = {'num_units': args.word_state_vector_length}
-        cell_fn = get_cell_fn("gru", args.word_cell_type, cell_args)
-        word_cell = cell_fn(**cell_args)
-        word_cell = tf.contrib.rnn.DropoutWrapper(word_cell,
-                                                  input_keep_prob=keep_prob)
-        word_cell = td.ScopedLayer(word_cell, 'word_cell_{}'.format(l))
-        word_cells.append(word_cell)
+    and writes to a TSV with format:
 
-    # Character-level stacked RNN
-    char_embed = (td.Map(td.Scalar(tf.int64) >>
-                         td.Function(td.Embedding(num_letters,
-                                                  #512,
-                                                  args.char_embed_vector_length,
-                                                  name='char_embed'))))
-    char_rnn = char_embed >> td.RNN(char_cells[0])
-    for l in range(1, args.char_rnn_layer):
-        char_rnn >>= td.GetItem(0) >> td.RNN(char_cells[l])
+      DOCID<tab>GOLD<tab>LAB1LOGPROB<tab>LAB2LOGPROB<tab>...
 
-    # Word-level stacked RNN
-    word_embed = td.Map(char_rnn >> td.GetItem(1))
-    word_rnn = word_embed >> td.RNN(word_cells[0])
-    for l in range(1, args.word_rnn_layer):
-        word_rnn >>= td.GetItem(0) >> td.RNN(word_cells[l])
-
-    context = sequence_to_tensor(word_rnn,
-                                 args.word_state_vector_length,
-                                 #512,
-                                 args.attention
-    )
-                                 #FLAGS.word_state_vector_length)
-
-    output_layer = (context >>
-                    td.FC(num_labels,
-                          activation=None,
-                          input_keep_prob=keep_prob,
-                          output_keep_prob=keep_prob,
-                          name='output_layer'))
-
-    label = td.Scalar(tf.int64)
-    cid = td.Scalar(tf.int64)
-    root_block = td.Record([('text', output_layer),
-                            ('label', label),
-                            ('cid', cid),
-    ])
-
-    # Turn dropout on for training, off for validation.
-    #plan.train_feeds[keep_prob] = FLAGS.keep_prob
-
-    return root_block
+    The TSV has a header to preserve the label strings.
+    """
+    codes = set()
+    for i, (gold, probs) in data.iteritems():
+        for l in probs.keys():
+            codes.add(l)
+    codes = sorted(codes)
+    with writer(gzip.open(output_file, "w")) as ofd:
+        ofd.write("\t".join(["DOC", "GOLD"] + codes) + "\n")
+        for cid, (label, probs) in data.iteritems():
+            ofd.write("\t".join([cid, label] + [str(probs.get(c, float("-inf"))) for c in codes]) + "\n")
 
 
 def example_generator(examples):
+    """
+    Simply yields examples per TF idiom.
+    """
     for example in examples:
         yield {'text': example[1], 'label': example[0], "cid" : example[2]}
 
+def serialize_model(checkpoint_path, sym_lookup, label_lookup, cid_lookup, output_file):
+    with gzip.open(os.path.join(checkpoint_path, "lookups.pkl.gz"), "w") as ofd:
+        pickle.dump((sym_lookup, label_lookup, cid_lookup), ofd)
+    with open(os.path.join(checkpoint_path, "checkpoint")) as ifd:
+        text = ifd.read()
+        text = re.sub(checkpoint_path, "TMPPATH", text)
+    with open(os.path.join(checkpoint_path, "checkpoint"), "w") as ofd:
+        ofd.write(text)
+    with tarfile.open(output_file, "w:gz") as ofd:
+        for name in glob(os.path.join(checkpoint_path, "*")):
+            ofd.add(name, arcname=os.path.basename(name))
+
+def deserialize_model(model_file, output_path):
+    with tarfile.open(model_file) as ifd:
+        ifd.extractall(path=output_path)
+    with open(os.path.join(output_path, "checkpoint")) as ifd:
+        text = ifd.read()
+        text = re.sub("TMPPATH", temppath, text)
+    with open(os.path.join(output_path, "checkpoint"), "w") as ofd:
+        ofd.write(text)
+    with gzip.open(os.path.join(output_path, "lookups.pkl.gz")) as ifd:
+        sym_lookup, label_lookup, _ = pickle.load(ifd)
+    return sym_lookup, label_lookup
+
+#
+# Callbacks for inference mode (irrelevant to training)
+#
+
+
+def key_callback(id_to_label, id_to_cid, x):
+    """
+    When TF iterates over examples, map the labels and IDs from integers back to strings.
+    """
+    return (id_to_label[x["label"]], id_to_cid[x["cid"]])
+
+
+def result_callback(id_to_label, output_file, res):
+    """
+    When TF inference completes, assemble the results to write to disk.
+    """
+    data = {}
+    order = [id_to_label[i] for i in range(len(id_to_label))]
+    correct, total = 0, 0
+    for (gold, cid), (probs,) in res:
+        total += 1
+        if gold == order[probs.flatten().argmax()]:
+            correct += 1
+        data[cid] = (gold, {k : v for k, v in zip(order, probs.flatten())})
+    logging.info("Accuracy: %.3f", float(correct) / total)
+    write_probabilities(data, options.output)
+
+        
+#
+# Modified Seal code
+#
+# General goals: remove global variables as much as possible, and annotate
+#                code with what I believe it does.  Remove and consolidate
+#                things to a minimal functional flat RNN.
+#
+
+class SequenceModel(object):
+
+    def __init__(self, num_letters, num_labels, char_rnn_layer, char_state_vector_length, char_embed_vector_length):
+        logging.info("Creating model with %d letters and %d labels", num_letters, num_labels)
+        keep_prob = tf.placeholder_with_default(1.0, [], name='keep_prob')
+        #             if plan.mode == plan.mode_keys.TRAIN else None)        
+        self._char_cells = []
+        for l in range(char_rnn_layer):
+            char_cell = tf.contrib.rnn.GRUCell(num_units=char_state_vector_length)
+            char_cell = tf.contrib.rnn.DropoutWrapper(char_cell,
+                                                      input_keep_prob=keep_prob,
+                                                      output_keep_prob=keep_prob)
+            char_cell = td.ScopedLayer(char_cell, 'char_cell_{}'.format(l))
+            self._char_cells.append(char_cell)
+
+        # Character-level stacked RNN
+        self._char_embed = (td.Map(td.Scalar(tf.int64) >>
+                             td.Function(td.Embedding(num_letters,
+                                                      char_embed_vector_length,
+                                                      name='char_embed'))))
+        self._char_rnn = self._char_embed >> td.RNN(self._char_cells[0])
+        for l in range(1, char_rnn_layer):
+            self._char_rnn >>= td.GetItem(0) >> td.RNN(self._char_cells[l])
+
+        self._context = self._char_rnn >> td.GetItem(1)    
+
+        self._output_layer = self._context >> td.FC(num_labels,
+                                                    activation=None,
+                                                    input_keep_prob=keep_prob,
+                                                    name='output_layer')
+
+        self._label = td.Scalar(tf.int64)
+        self._root_block = td.Record([('text', self._output_layer),
+                                      ('label', self._label)])
+
+        self._compiler = td.Compiler.create(self._root_block)
+        (self._logits, self._labels) = self._compiler.output_tensors
+
+        self._loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            logits=self._logits,
+            labels=self._labels
+        )
+        self._global_step = tf.contrib.framework.get_or_create_global_step()
+        lr = tf.train.exponential_decay(.001, self._global_step,
+                                    100000, 0.96, staircase=True)
+
+        self._optimizer = build_optimizer_from_params("adam", learning_rate=.001)
+        tvars = tf.trainable_variables()
+
+        self._predictions = tf.argmax(self._logits, 1)
+        self._accuracy = tf.reduce_mean(
+            tf.cast(tf.equal(self._predictions, self._labels), dtype=tf.float32)
+        )
+
+        self._grads_and_vars = self._optimizer.compute_gradients(self._loss, tvars)
+
+        tf.clip_by_global_norm([x[0] for x in self._grads_and_vars], 10.0)
+        self._train_op = self._optimizer.minimize(self._loss, global_step=self._global_step)
+
+    @property
+    def loss(self):
+        return self._loss
+
+    @property
+    def accuracy(self):
+        return self._accuracy
+
+    @property
+    def compiler(self):
+        return self._compiler
+
+    @property
+    def train_op(self):
+        return self._train_op
+
+    @property
+    def global_step(self):
+        return self._global_step
+
+    @property
+    def predictions(self):
+        return self._predictions
+
+    @property
+    def labels(self):
+        return self._labels
+
+    @property
+    def log_probs(self):
+        return self._logits
     
+    @property
+    def outputs(self):
+        return [self._logits]
+    
+    def build_feed_dict(self, expressions):
+        return self._compiler.build_feed_dict(expressions)
+
+
+#
+# Entrypoint for script
+#
+
+
 if __name__ == "__main__":
 
     import argparse
@@ -242,303 +312,96 @@ if __name__ == "__main__":
     parser.add_argument("--model", dest="model")
     parser.add_argument("--output", dest="output")
     
-    parser.add_argument("--model_type", dest="model_type", default="flat", choices=["flat", "hierarchical"])
     parser.add_argument("--dev", dest="dev", type=float, default=.1)
-    parser.add_argument("--attention", dest="attention", default="last", choices=["last", "mixture"])
-    parser.add_argument("--char_embed_vector_length", dest="char_embed_vector_length", default=128, type=int)
-    parser.add_argument("--char_state_vector_length", dest="char_state_vector_length", default=128, type=int)
-    parser.add_argument("--word_state_vector_length", dest="word_state_vector_length", default=512, type=int)
-    parser.add_argument("--char_cell_type", dest="char_cell_type", default="gru")
+    parser.add_argument("--char_embed_vector_length", dest="char_embed_vector_length", default=512, type=int)
+    parser.add_argument("--char_state_vector_length", dest="char_state_vector_length", default=512, type=int)
     parser.add_argument("--char_rnn_layer", dest="char_rnn_layer", default=2, type=int)
-    parser.add_argument("--word_cell_type", dest="word_cell_type", default="gru", choices=["gru", "lstm", "gridlstm", "gridgru"])
-    parser.add_argument("--word_rnn_layer", dest="word_rnn_layer", default=0, type=int)
-    parser.add_argument("--dropout_probability", dest="dropout_probability", default=.5, type=float)
-    parser.add_argument("--l2reg", dest="l2reg", default=False, action="store_true")
+    parser.add_argument("--keep_probability", dest="keep_probability", default=.5, type=float)
     parser.add_argument("--max_grad_norm", dest="max_grad_norm", default=10.0, type=float)
     parser.add_argument("--learning_rate", dest="learning_rate", default=.001, type=float)
-    parser.add_argument("--optimizer", dest="optimizer", default="adam", choices=_OPTIMIZER_CLASSES.keys())
 
     parser.add_argument("--epochs", dest="epochs", default=100, type=int)
     parser.add_argument("--batch_size", dest="batch_size", default=32, type=int)
     parser.add_argument("--batches_per_epoch", dest="batches_per_epoch", default=100, type=int)
     options = parser.parse_args()
-
     
-    #td.define_plan_flags(default_plan_name='seal')
-    FLAGS = tf.app.flags.FLAGS
-
-    
-    def setup_plan(plan, train, dev):
-        if plan.mode != 'train': raise ValueError('only train mode supported')
-
-        if FLAGS.hierarchical:
-            print('Building hierarchical model...')
-            root_block = create_hierarchical_model(nsym, ntag, plan)
-        else:
-            print('Building flat model...')
-            root_block = create_flat_model(nsym, ntag, plan)
-
-        plan.compiler = td.Compiler.create(root_block)
-
-        logits, labels = plan.compiler.output_tensors
-        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            logits=logits,
-            labels=labels
-        )
-
-        global_step = tf.contrib.framework.get_or_create_global_step()
-        lr = tf.train.exponential_decay(FLAGS.learning_rate, global_step,
-                                        100000, 0.96, staircase=True)
-
-        optimizer = build_optimizer_from_params(FLAGS.optim, learning_rate=lr)
-        tvars = tf.trainable_variables()
-
-        nvars = np.prod(tvars[0].get_shape().as_list())
-        for var in tvars[1:]:
-            sh = var.get_shape().as_list()
-            nvars += np.prod(sh)
-        print("{} total variables".format(nvars))
-
-        cost = None
-        if FLAGS.l2reg:
-            l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in tvars])
-            cost = cross_entropy + l2_loss
-            plan.losses['cross_entropy_L2'] = cost
-        else:
-            cost = cross_entropy
-            plan.losses['cross_entropy'] = cost
-
-        predictions = tf.argmax(logits, 1)
-        plan.metrics['accuracy'] = tf.reduce_mean(
-            tf.cast(tf.equal(predictions, labels), dtype=tf.float32)
-        )
-
-        # A list of (gradient, variable) pairs. Variable is always
-        # present, but gradient can be None.
-        grads_and_vars = optimizer.compute_gradients(cost, tvars)
-        
-        tf.clip_by_global_norm([x[0] for x in grads_and_vars], FLAGS.max_grad_norm)
-
-        plan.train_op = optimizer.apply_gradients(grads_and_vars,
-                                                  global_step=global_step)
-
-        plan.examples     = example_generator(train)
-        plan.dev_examples = example_generator(valid)
-
     temppath = tempfile.mkdtemp(prefix="tlippincott-tf")
-    
-    # training
-    if options.train and options.output and options.input:
 
-        
-        
-        cid_lookup, sym_lookup, label_lookup = {"unk" : 0}, {"unk" : 0}, {} #{"unk" : 0}
-        train, dev = [], []
-        instances, labels = [], []        
-        for cid, label, text in read_data(options.input, options.train):
-            label_lookup[label] = label_lookup.get(label, len(label_lookup))
-            cid_lookup[cid] = label_lookup.get(cid, len(cid_lookup))
-            syms = []
-            for c in text:
-                sym_lookup[c] = sym_lookup.get(c, len(sym_lookup))
-                syms.append(sym_lookup[c])
-            instances.append((label_lookup[label], syms, cid_lookup[cid]))
-        logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
-        plan = td.TrainPlan()
-        plan.num_multiprocess_processes = 0
-        plan.batch_size = options.batch_size
-        plan.save_summaries_secs = 0
-        plan.epochs = options.epochs
-        plan.batches_per_epoch = options.batches_per_epoch
+    try:
 
-        root_block = create_hierarchical_model(len(sym_lookup), len(label_lookup), options) if options.model_type == "hierarchical" else create_flat_model(len(sym_lookup), len(label_lookup), options)
+        # train model
+        if options.train and options.output and options.input:
+            instances, cid_lookup, sym_lookup, label_lookup = instances_and_lookups(options.input,
+                                                                                    options.train)
+            random.shuffle(instances)
+            train = instances[0 : int(len(instances) * (1.0 - options.dev))]
+            dev = instances[int(len(instances) * (1.0 - options.dev)):]
+            with tf.Graph().as_default():
+                model = SequenceModel(len(sym_lookup),
+                                      len(label_lookup),
+                                      options.char_rnn_layer,
+                                      options.char_state_vector_length,
+                                      options.char_embed_vector_length,
+                )
+                supervisor = tf.train.Supervisor(logdir=temppath)
+                with supervisor.managed_session() as sess:
+                    for e in xrange(options.epochs):
+                        logging.info("Epoch %d", e + 1)
+                        random.shuffle(train)
+                        accs = []
+                        for i, batch_feed in enumerate(model.compiler.build_loom_input_batched(example_generator(train), options.batch_size)):
+                            if i > options.batches_per_epoch:
+                                break
+                            else:
+                                _, step, loss_v, acc_v = sess.run(
+                                    [model.train_op, model.global_step, model.loss, model.accuracy],
+                                    feed_dict={model.compiler.loom_input_tensor : batch_feed})
+                                accs.append(acc_v)
+                        logging.info("Accuracy over epoch #%d was %f", e + 1, sum(accs) / len(accs))
 
-        plan.compiler = td.Compiler.create(root_block)
-        logits, labels = plan.compiler.output_tensors
-        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            logits=logits,
-            labels=labels
-        )
+            serialize_model(temppath, sym_lookup, label_lookup, cid_lookup, options.output)
+            
+        # perform inference with existing model
+        elif options.test and options.model and options.output and options.input:
+            train_sym_lookup, train_label_lookup = deserialize_model(options.model, temppath)
+            instances, cid_lookup, sym_lookup, label_lookup = instances_and_lookups(options.input,
+                                                                                    options.train,
+                                                                                    sym_lookup=train_sym_lookup,
+                                                                                    label_lookup=train_label_lookup)
+            
+            random.shuffle(instances)
+            id_to_label = {v : k for k, v in label_lookup.iteritems()}
+            id_to_cid = {v : k for k, v in cid_lookup.iteritems()}
+            test = example_generator(instances)
+            
+            with tf.Graph().as_default():
+                model = SequenceModel(len(sym_lookup),
+                                      len(label_lookup),
+                                      options.char_rnn_layer,
+                                      options.char_state_vector_length,
+                                      options.char_embed_vector_length,
+                )
+                supervisor = tf.train.Supervisor(logdir=temppath)
+                data = {}
+                with supervisor.managed_session() as sess:
+                    accs = []
+                    probs = []
+                    for batch_feed in model.compiler.build_loom_input_batched(test, options.batch_size):
+                        acc, preds, prob = sess.run([model.accuracy, model.predictions, model.log_probs],
+                                                     feed_dict={model.compiler.loom_input_tensor : batch_feed})
+                        accs.append(acc)
+                        probs.append(prob)
+                probs = numpy.concatenate(probs, axis=0)
+                logging.info("Accuracy: %f", sum(accs) / len(accs))
+                data = {}
+                order = [id_to_label[i] for i in range(len(id_to_label))]
+                for dist, (lid, _, cid) in zip(probs, instances):
+                    cid = id_to_cid[cid]
+                    g = id_to_label[lid]
+                    data[cid] = (g, {k : v for k, v in zip(order, dist.flatten())})
 
-        global_step = tf.contrib.framework.get_or_create_global_step()
-        lr = tf.train.exponential_decay(options.learning_rate, global_step,
-                                        100000, 0.96, staircase=True)
-
-        optimizer = build_optimizer_from_params(options.optimizer, learning_rate=options.learning_rate)
-        tvars = tf.trainable_variables()
-
-
-        nvars = np.prod(tvars[0].get_shape().as_list())
-        for var in tvars[1:]:
-            sh = var.get_shape().as_list()
-            nvars += np.prod(sh)
-        print("{} total variables".format(nvars))
-
-        cost = None
-        if options.l2reg:
-            l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in tvars])
-            cost = cross_entropy + l2_loss
-            plan.losses['cross_entropy_L2'] = cost
+                write_probabilities(data, options.output)
         else:
-            cost = cross_entropy
-            plan.losses['cross_entropy'] = cost
-
-        predictions = tf.argmax(logits, 1)
-        plan.metrics['accuracy'] = tf.reduce_mean(
-            tf.cast(tf.equal(predictions, labels), dtype=tf.float32)
-        )
-
-        # A list of (gradient, variable) pairs. Variable is always
-        # present, but gradient can be None.
-        grads_and_vars = optimizer.compute_gradients(cost, tvars)
-        
-        tf.clip_by_global_norm([x[0] for x in grads_and_vars], options.max_grad_norm)
-
-        plan.train_op = optimizer.apply_gradients(grads_and_vars,
-                                                  global_step=global_step)
-
-        plan.examples     = example_generator(instances[0 : int(len(instances) * options.dev)])
-        plan.dev_examples = example_generator(instances[int(len(instances) * options.dev):])
-        plan.logdir = temppath
-        #plan.batch_size = 32
-        plan.finalize_stats()
-        supervisor = tf.train.Supervisor()
-        with supervisor.managed_session() as sess:
-            with sess.as_default():
-                plan.run(supervisor, sess)
-                #s = tf.train.Saver(tf.global_variables())
-                #print s.save(sess, options.output)
-
-
-        #tf.app.run()
-        #sup = plan.create_supervisor()
-        
-        #sess.run(plan)
-        #plan.logdir = "temp/"
-        #
-        #plan.finalize_stats()
-        #plan.run(supervisor=s)
-        # if options.model_type == "hierarchical":
-        #     print('Building hierarchical model...')
-        #     root_block = create_hierarchical_model(len(sym_lookup), len(label_lookup)) #, plan)
-        # else:
-        #     print('Building flat model...')
-        #     root_block = create_flat_model(len(sym_lookup), len(label_lookup)) #, plan)
-
-
-        with gzip.open(os.path.join(temppath, "lookups.pkl.gz"), "w") as ofd:
-            pickle.dump((sym_lookup, label_lookup, cid_lookup), ofd)
-        with open(os.path.join(temppath, "checkpoint")) as ifd:
-            text = ifd.read()
-            text = re.sub(temppath, "TMPPATH", text)
-        with open(os.path.join(temppath, "checkpoint"), "w") as ofd:
-            ofd.write(text)
-        with tarfile.open(options.output, "w:gz") as ofd:
-            for name in glob(os.path.join(temppath, "*")):
-                ofd.add(name, arcname=os.path.basename(name))
-    # testing
-    elif options.test and options.model and options.output and options.input:
-        with tarfile.open(options.model) as ifd:
-            ifd.extractall(path=temppath)
-        with open(os.path.join(temppath, "checkpoint")) as ifd:
-            text = ifd.read()
-            text = re.sub("TMPPATH", temppath, text)
-        with open(os.path.join(temppath, "checkpoint"), "w") as ofd:
-            ofd.write(text)
-        with gzip.open(os.path.join(temppath, "lookups.pkl.gz")) as ifd:
-             sym_lookup, label_lookup, cid_lookup = pickle.load(ifd)
-        id_to_label = {v : k for k, v in label_lookup.iteritems()}
-        plan = td.InferPlan()
-        plan.num_multiprocess_processes = 0
-        plan.batch_size = 32
-        plan.save_summaries_secs = 0
-        plan.epochs = 2
-        plan.batches_per_epoch = 8
-
-        root_block = create_hierarchical_model(len(sym_lookup), len(label_lookup), options) if options.model_type == "hierarchical" else create_flat_model(len(sym_lookup), len(label_lookup), options)
-
-
-        
-        test = []
-        #with reader(gzip.open(options.test)) as ifd:
-        #    indices = [int(l.strip()) for l in ifd]
-        #indices = set(indices)
-        instances, labels = [], []
-        #with reader(gzip.open(options.input)) as ifd:
-        #    for i, line in enumerate(ifd):
-        #        if i in indices:
-        #            cid, label, text = line.strip().split("\t")
-        for cid, label, text in read_data(options.input, options.test):
-            cid_lookup[cid] = label_lookup.get(cid, len(cid_lookup))
-            syms = []
-            for c in text:
-                syms.append(sym_lookup.get(c, 0))
-            instances.append((label_lookup.get(label, 0), syms, cid_lookup[cid]))
-        logging.info("Testing with %d instances, %d labels", len(instances), len(label_lookup))
-        
-        plan.compiler = td.Compiler.create(root_block)
-        logits, labels = plan.compiler.output_tensors
-        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            logits=logits,
-            labels=labels
-        )
-        plan.outputs = [logits]        
-        global_step = tf.contrib.framework.get_or_create_global_step()
-        lr = tf.train.exponential_decay(options.learning_rate, global_step,
-                                        100000, 0.96, staircase=True)
-
-        optimizer = build_optimizer_from_params(options.optimizer, learning_rate=options.learning_rate)
-        tvars = tf.trainable_variables()
-
-
-        nvars = np.prod(tvars[0].get_shape().as_list())
-        for var in tvars[1:]:
-            sh = var.get_shape().as_list()
-            nvars += np.prod(sh)
-        print("{} total variables".format(nvars))
-
-        cost = None
-        if options.l2reg:
-            l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in tvars])
-            cost = cross_entropy + l2_loss
-            plan.losses['cross_entropy_L2'] = cost
-        else:
-            cost = cross_entropy
-            plan.losses['cross_entropy'] = cost
-
-        predictions = tf.argmax(logits, 1)
-        plan.metrics['accuracy'] = tf.reduce_mean(
-            tf.cast(tf.equal(predictions, labels), dtype=tf.float32)
-        )
-
-        # A list of (gradient, variable) pairs. Variable is always
-        # present, but gradient can be None.
-        grads_and_vars = optimizer.compute_gradients(cost, tvars)
-        
-        tf.clip_by_global_norm([x[0] for x in grads_and_vars], options.max_grad_norm)
-
-        plan.train_op = optimizer.apply_gradients(grads_and_vars,
-                                                  global_step=global_step)
-
-        plan.examples     = example_generator(instances)
-        plan.logdir = "temp/"
-        plan.logdir_restore = "temp/"
-        plan.finalize_stats()
-
-        id_to_cid = {v : k for k, v in cid_lookup.iteritems()}
-        def rfun(res):
-            with writer(gzip.open(options.output, "w")) as ofd:
-                ofd.write("\t".join(["ID", "GOLD"] + [id_to_label[i] for i in range(len(id_to_label))]) + "\n")
-                for (gold, cid), (probs,) in res:
-                    ofd.write("\t".join([cid, gold] + ["%f" % x for x in probs.flatten()]) + "\n")
-        def kfun(x):
-            return (id_to_label[x["label"]], id_to_cid.get(x["cid"], "?"))
-
-        supervisor = tf.train.Supervisor()            
-        plan.results_fn = rfun
-        plan.key_fn = kfun
-        with supervisor.managed_session() as sess:
-            with sess.as_default():
-                x = plan.run(supervisor, sess)
-
-    shutil.rmtree(temppath)
+            logging.error("You must specify the input and output files, and either a training file, or testing and model files!")
+    finally:
+        shutil.rmtree(temppath)
