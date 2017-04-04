@@ -44,7 +44,7 @@ if __name__ == "__main__":
         ggplot2.geom_boxplot() + \
         ggplot2.theme(text=ggplot2.element_text(size=20, family="serif"), legend_title=ggplot2.element_blank(), plot_title=ggplot2.element_text(hjust=.5, size=20, family="serif")) + \
         ggplot2.ggtitle(task.title()) + \
-        ggplot2.labs(y="F-Score", x="Document Count")
+        ggplot2.labs(y="Average Class F-Score (equally-weighted)", x="Document Count (logarithmic)")
 
     x.plot()
     grdevices.dev_off()

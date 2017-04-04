@@ -396,7 +396,7 @@ if __name__ == "__main__":
                 data = {}
                 order = [id_to_label[i] for i in range(len(id_to_label))]
                 for dist, (lid, _, cid) in zip(probs, instances):
-                    cid = id_to_cid[cid]
+                    cid = id_to_cid.get(cid, str(cid))
                     g = id_to_label[lid]
                     data[cid] = (g, {k : v for k, v in zip(order, dist.flatten())})
 

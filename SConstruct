@@ -35,7 +35,7 @@ logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S
 def qsub(command, dep_ids=[], resources=[]):
     deps = "" if len(dep_ids) == 0 else "-hold_jid %s" % (",".join([str(x) for x in dep_ids]))
     res = "" if len(resources) == 0 else "-l %s" % (",".join([str(x) for x in resources]))
-    qcommand = "qsub -v PYTHONPATH -b y -cwd -j y -terse -o output.out %s %s %s" % (deps, res, command)
+    qcommand = "qsub -v PATH -v PYTHONPATH -b y -cwd -j y -terse -o output.out %s %s %s" % (deps, res, command)
     p = subprocess.Popen(shlex.split(qcommand), stdout=subprocess.PIPE)
     out, err = p.communicate()
     return int(out.strip())
