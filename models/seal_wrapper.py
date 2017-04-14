@@ -21,45 +21,12 @@ import tensorflow_fold.blocks.result_types as tdt
 from tensorflow_fold.blocks.plan import build_optimizer_from_params
 from tqdm import tqdm
 import numpy
+from data_io import read_data, write_probabilities, writer, reader, extract_character_ngrams
 
 
 #
 # Data-loading functions (can probably skip this)
 #
-
-
-writer = codecs.getwriter("utf-8")
-reader = codecs.getreader("utf-8")
-
-
-def read_data(data_file, num_file, tag_type="attribute"):
-    """
-    Read in communications from a TSV or Concrete file @data_file, only keeping the communications
-    specified in @num_file.  If Concrete, @tag_type specifies what CommunicationTagging to use
-    as the label.
-    """
-    conc = data_file.endswith("tgz")
-    nums = set()
-    with gzip.open(num_file) as ifd:
-        for n in ifd:
-            nums.add(int(n.rstrip("\n")))
-    label_counts = {}
-    items = []
-    ifd = CommunicationReader(data_file) if conc else reader(gzip.open(data_file))    
-    for n, item in enumerate(ifd):
-        if n in nums:
-            if conc:
-                text = item[0].text
-                cid = item[0].id
-                label = [t for t in item[0].communicationTaggingList if
-                         t.taggingType == tag_type and t.metadata.tool == "Gold labeling"][0].tagList[0]
-            else:
-                cid, label, text = item.rstrip("\n").split("\t")
-            label_counts[label] = label_counts.get(label, 0) + 1
-            items.append((cid, label, text))
-    logging.info("Read %d Communications", len(items))
-    logging.info("Label counts: %s", " ".join(["%s=%d" % (k, v) for k, v in sorted(label_counts.iteritems())]))
-    return items
 
 
 def instances_and_lookups(input_file, index_file, sym_lookup={"unk" : 0}, label_lookup={"unk" : 0}):
@@ -105,29 +72,6 @@ def instances_and_lookups(input_file, index_file, sym_lookup={"unk" : 0}, label_
     return instances, cid_lookup, sym_lookup, label_lookup
 
 
-def write_probabilities(data, output_file):
-    """
-    Takes a dictionary with entries like:
-
-      DOCID : (GOLD, {LAB1 : logprob, LAB2 : logprob ... }
-
-    and writes to a TSV with format:
-
-      DOCID<tab>GOLD<tab>LAB1LOGPROB<tab>LAB2LOGPROB<tab>...
-
-    The TSV has a header to preserve the label strings.
-    """
-    codes = set()
-    for i, (gold, probs) in data.iteritems():
-        for l in probs.keys():
-            codes.add(l)
-    codes = sorted(codes)
-    with writer(gzip.open(output_file, "w")) as ofd:
-        ofd.write("\t".join(["DOC", "GOLD"] + codes) + "\n")
-        for cid, (label, probs) in data.iteritems():
-            ofd.write("\t".join([cid, label] + [str(probs.get(c, float("-inf"))) for c in codes]) + "\n")
-
-
 def example_generator(examples):
     """
     Simply yields examples per TF idiom.
@@ -135,29 +79,34 @@ def example_generator(examples):
     for example in examples:
         yield {'text': example[1], 'label': example[0], "cid" : example[2]}
 
-def serialize_model(checkpoint_path, sym_lookup, label_lookup, cid_lookup, output_file):
-    with gzip.open(os.path.join(checkpoint_path, "lookups.pkl.gz"), "w") as ofd:
+
+def serialize_model(sess, temppath, sym_lookup, label_lookup, cid_lookup, output_file):
+    with gzip.open(os.path.join(temppath, "lookups.pkl.gz"), "w") as ofd:
         pickle.dump((sym_lookup, label_lookup, cid_lookup), ofd)
-    with open(os.path.join(checkpoint_path, "checkpoint")) as ifd:
-        text = ifd.read()
-        text = re.sub(checkpoint_path, "TMPPATH", text)
-    with open(os.path.join(checkpoint_path, "checkpoint"), "w") as ofd:
-        ofd.write(text)
+    saver = tf.train.Saver()
+    saver.save(sess, os.path.join(temppath, "model"))
+    #with open(os.path.join(checkpoint_path, "checkpoint")) as ifd:
+    #    text = ifd.read()
+    #    text = re.sub(checkpoint_path, "TMPPATH", text)
+    #with open(os.path.join(checkpoint_path, "checkpoint"), "w") as ofd:
+    #    ofd.write(text)
     with tarfile.open(output_file, "w:gz") as ofd:
-        for name in glob(os.path.join(checkpoint_path, "*")):
+        for name in glob(os.path.join(temppath, "*")):
             ofd.add(name, arcname=os.path.basename(name))
+
 
 def deserialize_model(model_file, output_path):
     with tarfile.open(model_file) as ifd:
         ifd.extractall(path=output_path)
-    with open(os.path.join(output_path, "checkpoint")) as ifd:
-        text = ifd.read()
-        text = re.sub("TMPPATH", temppath, text)
-    with open(os.path.join(output_path, "checkpoint"), "w") as ofd:
-        ofd.write(text)
+    #with open(os.path.join(output_path, "checkpoint")) as ifd:
+    #    text = ifd.read()
+    #    text = re.sub("TMPPATH", temppath, text)
+    #with open(os.path.join(output_path, "checkpoint"), "w") as ofd:
+    #    ofd.write(text)
     with gzip.open(os.path.join(output_path, "lookups.pkl.gz")) as ifd:
         sym_lookup, label_lookup, _ = pickle.load(ifd)
     return sym_lookup, label_lookup
+
 
 #
 # Callbacks for inference mode (irrelevant to training)
@@ -199,14 +148,14 @@ class SequenceModel(object):
 
     def __init__(self, num_letters, num_labels, char_rnn_layer, char_state_vector_length, char_embed_vector_length):
         logging.info("Creating model with %d letters and %d labels", num_letters, num_labels)
-        keep_prob = tf.placeholder_with_default(1.0, [], name='keep_prob')
-        #             if plan.mode == plan.mode_keys.TRAIN else None)        
+        #self._keep_probability = tf.Variable(1.0, trainable=False)
+        self._keep_probability = tf.placeholder_with_default(1.0, [], name='keep_probability')
         self._char_cells = []
         for l in range(char_rnn_layer):
             char_cell = tf.contrib.rnn.GRUCell(num_units=char_state_vector_length)
             char_cell = tf.contrib.rnn.DropoutWrapper(char_cell,
-                                                      input_keep_prob=keep_prob,
-                                                      output_keep_prob=keep_prob)
+                                                      input_keep_prob=self._keep_probability,
+                                                      output_keep_prob=self._keep_probability)
             char_cell = td.ScopedLayer(char_cell, 'char_cell_{}'.format(l))
             self._char_cells.append(char_cell)
 
@@ -223,7 +172,7 @@ class SequenceModel(object):
 
         self._output_layer = self._context >> td.FC(num_labels,
                                                     activation=None,
-                                                    input_keep_prob=keep_prob,
+                                                    input_keep_prob=self._keep_probability,
                                                     name='output_layer')
 
         self._label = td.Scalar(tf.int64)
@@ -321,8 +270,8 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", dest="learning_rate", default=.001, type=float)
 
     parser.add_argument("--epochs", dest="epochs", default=100, type=int)
-    parser.add_argument("--batch_size", dest="batch_size", default=32, type=int)
-    parser.add_argument("--batches_per_epoch", dest="batches_per_epoch", default=100, type=int)
+    parser.add_argument("--batch_size", dest="batch_size", default=128, type=int)
+    parser.add_argument("--batches_per_epoch", dest="batches_per_epoch", default=25, type=int)
     options = parser.parse_args()
     
     temppath = tempfile.mkdtemp(prefix="tlippincott-tf")
@@ -336,6 +285,7 @@ if __name__ == "__main__":
             random.shuffle(instances)
             train = instances[0 : int(len(instances) * (1.0 - options.dev))]
             dev = instances[int(len(instances) * (1.0 - options.dev)):]
+            best_score = None
             with tf.Graph().as_default():
                 model = SequenceModel(len(sym_lookup),
                                       len(label_lookup),
@@ -343,8 +293,14 @@ if __name__ == "__main__":
                                       options.char_state_vector_length,
                                       options.char_embed_vector_length,
                 )
-                supervisor = tf.train.Supervisor(logdir=temppath)
-                with supervisor.managed_session() as sess:
+                #init = tf.assign(model._keep_probability, options.keep_probability)
+                init = tf.global_variables_initializer()
+                #supervisor = tf.train.Supervisor(logdir=temppath)
+                #with supervisor.managed_session() as sess:
+                with tf.Session() as sess:
+                    sess.run(init)
+                    since_last_write = 0
+                    #sess.run(init) #tf.assign(model._keep_probability, options.keep_probability))
                     for e in xrange(options.epochs):
                         logging.info("Epoch %d", e + 1)
                         random.shuffle(train)
@@ -355,11 +311,26 @@ if __name__ == "__main__":
                             else:
                                 _, step, loss_v, acc_v = sess.run(
                                     [model.train_op, model.global_step, model.loss, model.accuracy],
-                                    feed_dict={model.compiler.loom_input_tensor : batch_feed})
+                                    feed_dict={model.compiler.loom_input_tensor : batch_feed, model._keep_probability : options.keep_probability})
                                 accs.append(acc_v)
-                        logging.info("Accuracy over epoch #%d was %f", e + 1, sum(accs) / len(accs))
-
-            serialize_model(temppath, sym_lookup, label_lookup, cid_lookup, options.output)
+                        logging.info("Train accuracy over epoch #%d was %f", e + 1, sum(accs) / len(accs))
+                        accs = []
+                        for batch_feed in model.compiler.build_loom_input_batched(example_generator(dev), options.batch_size):
+                            acc, preds, prob = sess.run([model.accuracy, model.predictions, model.log_probs],
+                                                        feed_dict={model.compiler.loom_input_tensor : batch_feed, model._keep_probability : 1.0})
+                            accs.append(acc)
+                            #probs.append(prob)
+                        acc = sum(accs) / len(accs)
+                        logging.info("Dev accuracy over epoch #%d was %f", e + 1, acc)
+                        since_last_write += 1
+                        if since_last_write > 5:
+                            logging.info("Stopping!")
+                            break
+                        if best_score == None or acc > best_score:
+                            logging.info("New best score: %f", acc)
+                            best_score = acc
+                            since_last_write = 0
+                            serialize_model(sess, temppath, sym_lookup, label_lookup, cid_lookup, options.output)
             
         # perform inference with existing model
         elif options.test and options.model and options.output and options.input:
@@ -381,14 +352,21 @@ if __name__ == "__main__":
                                       options.char_state_vector_length,
                                       options.char_embed_vector_length,
                 )
-                supervisor = tf.train.Supervisor(logdir=temppath)
+                #init = tf.global_variables_initializer()
+                #init = tf.assign(model._keep_probability, options.keep_probability)
+                #supervisor = tf.train.Supervisor(logdir=temppath)
                 data = {}
-                with supervisor.managed_session() as sess:
+                #with supervisor.managed_session() as sess:
+                with tf.Session() as sess:
+                    s = tf.train.Saver()
+                    s.restore(sess, os.path.join(temppath, "model"))
+                    #sess.run(init) #tf.assign(model._keep_probability, 1.0))
                     accs = []
                     probs = []
                     for batch_feed in model.compiler.build_loom_input_batched(test, options.batch_size):
+                        
                         acc, preds, prob = sess.run([model.accuracy, model.predictions, model.log_probs],
-                                                     feed_dict={model.compiler.loom_input_tensor : batch_feed})
+                                                     feed_dict={model.compiler.loom_input_tensor : batch_feed, model._keep_probability : 1.0})
                         accs.append(acc)
                         probs.append(prob)
                 probs = numpy.concatenate(probs, axis=0)

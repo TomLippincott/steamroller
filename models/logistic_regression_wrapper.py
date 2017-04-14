@@ -35,18 +35,22 @@ if __name__ == "__main__":
         dv = DictVectorizer(sparse=True)
         X = dv.fit_transform(instances)
         label_lookup = {}
-        classifier = linear_model.LogisticRegression(class_weight="balanced", solver="sag", multi_class="multinomial", max_iter=40000)
+
         for l in labels:
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
         logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
-        classifier.fit(X, [label_lookup[l] for l in labels])
-        logging.info("Used %d iterations", classifier.n_iter_)
-        with gzip.open(options.output, "w") as ofd:
+        try:
+            classifier = linear_model.LogisticRegressionCV(class_weight="balanced", solver="sag", multi_class="multinomial", max_iter=40000)
+            classifier.fit(X, [label_lookup[l] for l in labels])
+        except:
+            classifier = linear_model.LogisticRegression(class_weight="balanced", solver="sag", multi_class="multinomial", max_iter=40000)
+            classifier.fit(X, [label_lookup[l] for l in labels])
+        with open(options.output, "w") as ofd:
             pickle.dump((classifier, dv, label_lookup), ofd)            
 
     # testing
     elif options.test and options.model and options.output and options.input:
-        with gzip.open(options.model) as ifd:
+        with open(options.model) as ifd:
             classifier, dv, label_lookup = pickle.load(ifd)
         instances, gold = [], []
         for cid, label, text in read_data(options.input, options.test):

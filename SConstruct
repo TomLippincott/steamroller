@@ -12,7 +12,7 @@ vars.AddVariables(
     ("DEFAULTS", "General variables (potentially overridden by models and tasks)", {}),
     ("MODELS", "Classification models to compare", []),
     ("TASKS", "Classification tasks", []),
-    ("TEST_COUNT", "Classification tasks", 32000),
+    ("TEST_COUNT", "Classification tasks", 10000),
     BoolVariable("GRID", "Do we have access to a grid via the qsub command?", False),
 )
 
@@ -63,6 +63,7 @@ for name, command in [
        ("GetCount", "python tools/get_count.py --input ${SOURCES[0]} --output ${TARGETS[0]}"),
        ("CreateSplit", "python tools/create_split.py --total_file ${SOURCES[0]} --train_count ${SOURCES[1].read()} --test_count ${TEST_COUNT} --train ${TARGETS[0]} --test ${TARGETS[1]}"),
        ("Evaluate", "python tools/evaluate.py -o ${TARGETS[0]} ${SOURCES}"),
+       ("Compare", "python tools/compare.py -o ${TARGETS[0]} ${SOURCES}"),
        ("Plot", "python tools/plot.py -o ${TARGETS[0]} ${SOURCES}"),
        ]:
    env["BUILDERS"][name] = Builder(action=GridWrapper(command % defaults))
@@ -99,6 +100,7 @@ for task in env["TASKS"]:
                                       "work/%s_%s_%s_%s.model" % (task_name, model_name, size, fold),
                                       [train, input_file])
 
+                #classified = [env.File("work/%s_%s_%s_%s_results.txt.gz" % (task_name, model_name, size, fold))]
                 classified = apply_builder(env,
                                            "work/%s_%s_%s_%s_results.txt.gz" % (task_name, model_name, size, fold),
                                            [model, test, input_file])
@@ -110,5 +112,6 @@ for task in env["TASKS"]:
                 classified_items.append(classified)
 
     if len(classified_items) > 0:
+    #    compare = env.Compare("work/%s_compare.txt.gz" % (task_name), classified_items)
         scores = env.Evaluate("work/%s_scores.txt.gz" % (task_name), classified_items)
         plots = env.Plot("work/%s_plot.png" % (task_name), scores)

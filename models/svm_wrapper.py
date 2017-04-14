@@ -1,10 +1,13 @@
 import gzip
 from sklearn import svm
 from sklearn.feature_extraction import DictVectorizer
+from sklearn import preprocessing
+from sklearn.model_selection import GridSearchCV, StratifiedShuffleSplit
 import pickle
 import codecs
 import logging
 from itertools import chain
+import numpy
 from data_io import read_data, write_probabilities, writer, reader, extract_character_ngrams
 
 if __name__ == "__main__":
@@ -30,25 +33,35 @@ if __name__ == "__main__":
             labels.append(label)
         dv = DictVectorizer(sparse=True)
         X = dv.fit_transform(instances)
+        scaler = preprocessing.StandardScaler(with_mean=False).fit(X)
         label_lookup = {}
-        classifier = svm.SVC(probability=True)
+        #C_range = numpy.logspace(-3, 3, 6)
+        #gamma_range = numpy.logspace(-3, 3, 6)
+        #param_grid = dict(gamma=gamma_range, C=C_range)
+        #cv = StratifiedShuffleSplit(n_splits=3, test_size=0.2, random_state=42)
         for l in labels:
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
+        y = [label_lookup[l] for l in labels]
+        #grid = GridSearchCV(svm.SVC(), param_grid=param_grid, cv=cv)
+        #grid.fit(X, y)
+        #print grid.best_params_
+        classifier = svm.SVC(probability=True) #, C=grid.best_params_["C"], gamma=grid.best_params_["gamma"])
+
         logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
-        classifier.fit(X, [label_lookup[l] for l in labels])
+        classifier.fit(scaler.transform(X), [label_lookup[l] for l in labels])
         with gzip.open(options.output, "w") as ofd:
-            pickle.dump((classifier, dv, label_lookup), ofd)            
+            pickle.dump((classifier, scaler, dv, label_lookup), ofd)            
 
     # testing
     elif options.test and options.model and options.output and options.input:
         with gzip.open(options.model) as ifd:
-            classifier, dv, label_lookup = pickle.load(ifd)
+            classifier, scaler, dv, label_lookup = pickle.load(ifd)
         instances, gold = [], []
         for cid, label, text in read_data(options.input, options.test):
             instances.append(dict(sum([extract_character_ngrams(text, options.max_ngram) for n in range(1, options.max_ngram + 1)], [])))
             gold.append((cid, label))
         logging.info("Testing with %d instances, %d labels", len(instances), len(label_lookup))
-        X = dv.transform(instances)
+        X = scaler.transform(dv.transform(instances))
         inv_label_lookup = {v : k for k, v in label_lookup.iteritems()}
         data = {}
         order = [inv_label_lookup[i] for i in range(len(inv_label_lookup))]

@@ -37,11 +37,11 @@ if __name__ == "__main__":
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
         logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
         classifier.fit(X, [label_lookup[l] for l in labels])
-        with gzip.open(options.output, "w") as ofd:
+        with open(options.output, "w") as ofd:
             pickle.dump((classifier, dv, label_lookup), ofd)            
     # testing
     elif options.test and options.model and options.output and options.input:
-        with gzip.open(options.model) as ifd:
+        with open(options.model) as ifd:
             classifier, dv, label_lookup = pickle.load(ifd)
         instances, gold = [], []
         for cid, label, text in read_data(options.input, options.test):
