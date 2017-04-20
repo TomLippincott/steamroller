@@ -1,5 +1,4 @@
-# SteamRoller
-![Logo](logo.png)
+# SteamRoller ![Logo](logo.png)
 
 This is a framework for testing various methods for performing different tasks in the broad area of "text classification".  It is designed to make it extremely easy to define new classification tasks, and new models, and drop them in to see how they perform.
 
