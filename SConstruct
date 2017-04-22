@@ -8,7 +8,7 @@ from data_io import reader, writer
 import gzip
 import re
 import pickle
-
+import functools
 
 vars = Variables("custom.py")
 vars.AddVariables(
@@ -44,7 +44,7 @@ def resource_emitter(target, source, env):
 def qsub(command, dep_ids=[], grid_resources=[]):
     deps = "" if len(dep_ids) == 0 else "-hold_jid %s" % (",".join([str(x) for x in dep_ids]))
     res = "" if len(grid_resources) == 0 else "-l %s" % (",".join([str(x) for x in grid_resources]))
-    qcommand = "qsub -v PATH -v PYTHONPATH -b y -cwd -j y -terse -o ${TARGETS[-1]} %s %s %s" % (deps, res, command)
+    qcommand = "qsub -v PATH -v PYTHONPATH -b y -cwd -j y -terse -o output.txt %s %s %s" % (deps, res, command)
     p = subprocess.Popen(shlex.split(qcommand), stdout=subprocess.PIPE)
     out, err = p.communicate()
     return int(out.strip())
@@ -58,7 +58,7 @@ def qsub(command, dep_ids=[], grid_resources=[]):
 
 
 # def Grid(command, grid_resources=[]):
-def grid_method(target, source, env):
+def grid_method(command, target, source, env):
     depends_on = set(filter(lambda x : x != None, [s.GetTag("built_by_job") for s in source]))
     job_id = qsub(env.subst(command, source=source, target=target), depends_on, env["GRID_RESOURCES"])
     for t in target:
@@ -87,8 +87,9 @@ def grid_method(target, source, env):
 
 def Wrapper(command, grid_resources=[]):
     timed_command = "/usr/bin/time --verbose -o ${TARGETS[-1]} " + command
-    if env["GRID"] and isinstance(local_command, basestring):
-        return Grid(timed_command, grid_resources)
+    if env["GRID"] and isinstance(command, basestring):
+        return Builder(action=Action(functools.partial(grid_method, timed_command), "grid(%s)" % (timed_command)), 
+                       emitter=resource_emitter) #Grid(timed_command, grid_resources)
     else:
         return Builder(action=timed_command, emitter=resource_emitter)
 
