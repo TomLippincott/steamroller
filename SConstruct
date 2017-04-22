@@ -10,6 +10,7 @@ import re
 import pickle
 import functools
 
+
 vars = Variables("custom.py")
 vars.AddVariables(
     ("OUTPUT_WIDTH", "Upper limit on how long a debugging line will be before it's truncated", 1000),
@@ -50,14 +51,6 @@ def qsub(command, dep_ids=[], grid_resources=[]):
     return int(out.strip())
 
 
-#def localsub(command):
-#    qcommand = "qsub -v PATH -v PYTHONPATH -b y -cwd -j y -terse -o output.out %s %s %s" % (deps, res, command)
-#    p = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE)
-#    out, err = p.communicate()
-#    return int(out.strip())
-
-
-# def Grid(command, grid_resources=[]):
 def grid_method(command, target, source, env):
     depends_on = set(filter(lambda x : x != None, [s.GetTag("built_by_job") for s in source]))
     job_id = qsub(env.subst(command, source=source, target=target), depends_on, env["GRID_RESOURCES"])
@@ -65,31 +58,13 @@ def grid_method(command, target, source, env):
         t.Tag("built_by_job", job_id)
     logging.info("Job %d depends on %s", job_id, depends_on)
     return None
-#     return Builder(action=Action(grid_method, "grid(%s)" % (command)))
-
-
-
-
-# def Local(command):
-#     def local_emitter(target, source, env):
-#         return target + [target[0].rstr() + ".resources.gz"], source
-#     def local_method(target, source, env):
-#         #local_command = "/usr/bin/time --verbose " + command
-#         p = subprocess.Popen(shlex.split(env.subst(local_command, source=source, target=target)),
-#                              stdout=subprocess.PIPE,
-#                              stderr=subprocess.PIPE)
-#         out, err = p.communicate()
-#         with writer(gzip.open(target[-1].rstr(), "w")) as ofd:
-#             ofd.write(err + out)
-#         return None
-#     return Builder(action=Action(local_method, "%s > ${TARGETS[-1]}" % (command)), emitter=local_emitter)
 
 
 def Wrapper(command, grid_resources=[]):
     timed_command = "/usr/bin/time --verbose -o ${TARGETS[-1]} " + command
     if env["GRID"] and isinstance(command, basestring):
         return Builder(action=Action(functools.partial(grid_method, timed_command), "grid(%s)" % (timed_command)), 
-                       emitter=resource_emitter) #Grid(timed_command, grid_resources)
+                       emitter=resource_emitter)
     else:
         return Builder(action=timed_command, emitter=resource_emitter)
 
@@ -103,7 +78,7 @@ for name, command in [
         ("Evaluate", "python tools/evaluate.py -o ${TARGETS[0]} ${SOURCES}"),
         ("CollateResources", "python tools/collate_resources.py -o ${TARGETS[0]} ${SOURCES}"),
         ("ModelSizes", "python tools/model_sizes.py -o ${TARGETS[0]} ${SOURCES}"),        
-        ("Plot", "python tools/plot.py -o ${TARGETS[0]} -f ${FIELD} ${SOURCES}"),
+        ("Plot", "python tools/plot.py -o ${TARGETS[0]} -f \"${FIELD}\" ${SOURCES}"),
 ]:
     env["BUILDERS"][name] = Wrapper(command % defaults)
 
@@ -153,9 +128,9 @@ for task in env["TASKS"]:
         train_resources, _ = env.CollateResources("work/%s_trainresources.txt.gz" % (task_name), train_resource_list)
         apply_resources, _ = env.CollateResources("work/%s_applyresources.txt.gz" % (task_name), apply_resource_list)
         model_sizes, _ = env.ModelSizes("work/%s_modelsizes.txt.gz" % (task_name), model_list)
-        env.Plot("work/%s_trainmemory_plot.png" % (task_name), train_resources, FIELD="Memory")
-        env.Plot("work/%s_traincpu_plot.png" % (task_name), train_resources, FIELD="CPU")
-        env.Plot("work/%s_applymemory_plot.png" % (task_name), apply_resources, FIELD="Memory")
-        env.Plot("work/%s_applycpu_plot.png" % (task_name), apply_resources, FIELD="CPU")
-        env.Plot("work/%s_modelsize_plot.png" % (task_name), model_sizes, FIELD="Size")        
+        env.Plot("work/%s_trainmemory_plot.png" % (task_name), train_resources, FIELD="Memory (G)")
+        env.Plot("work/%s_traincpu_plot.png" % (task_name), train_resources, FIELD="CPU (s)")
+        env.Plot("work/%s_applymemory_plot.png" % (task_name), apply_resources, FIELD="Memory (G)")
+        env.Plot("work/%s_applycpu_plot.png" % (task_name), apply_resources, FIELD="CPU (s)")
+        env.Plot("work/%s_modelsize_plot.png" % (task_name), model_sizes, FIELD="Model Size (G)")        
         env.Plot("work/%s_fscore_plot.png" % (task_name), scores, FIELD="F-Score")

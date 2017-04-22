@@ -7,8 +7,7 @@ DEFAULTS = {
     "sizes" : [1000, 2000, 4000, 8000, 16000, 32000, 64000],
 
     # Proportions for random data splits
-    "train" : 0.8,
-    "dev" : 0.1,
+    "train" : 0.9,
     "test" : 0.1,
     
     # How many random data folds for each experiment (combination
@@ -20,23 +19,27 @@ DEFAULTS = {
     "max_ngram" : 4,
 }
 
-# A "task" is just a labeled data set.
+# A "task" is just a labeled data set.  Note that Twitter data (the
+# original focus of this framework) cannot be directly distributed.
+# Instead, we provide the ID-to-label mappings which can be used to
+# construct the data sets.
 TASKS = [
     {"name" : "LID",
-    "file" : "tasks/lid.tgz",     
+     "file" : "tasks/lid.tgz",     
     },    
     {"name" : "Politics",
-    "file" : "tasks/politics.tgz",     
-    },    
-    {"name" : "Gender",
-    "file" : "tasks/gender.tgz",     
-    },    
+     "file" : "tasks/politics.tgz",     
+    },
     {"name" : "Events",
-    "file" : "tasks/events.tgz",     
+     "file" : "tasks/events.tgz",     
     },
     {"name" : "Age",
      "file" : "tasks/age.tgz",     
     },
+    # Commented out by default: proprietary data set (MITRE)
+    #{"name" : "Gender",
+    # "file" : "tasks/gender.tgz",     
+    #},    
 ]
 
 # A "model" provides two commands: one for training, the other for
@@ -74,20 +77,21 @@ MODELS = [
      "apply_command" : "python models/logistic_regression_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
     },
 
-    {"name" : "FastText",
-     "train_command" : "python models/fasttext_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --word_vector_size 5 --max_char_ngram %(max_ngram)s --max_word_ngram 2 --word_context_size 2",
-     "apply_command" : "python models/fasttext_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
-    },
-
-    {"name" : "Seal",
-     "train_command" : "python models/seal_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --epochs 100",
-     "apply_command" : "python models/seal_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
-    },
-
     {"name" : "Prior",
      "train_command" : "python models/prior_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]}",
      "apply_command" : "python models/prior_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
-    }
+    },
+    
+    #{"name" : "FastText",
+    # "train_command" : "python models/fasttext_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --word_vector_size 5 --max_char_ngram %(max_ngram)s --max_word_ngram 2 --word_context_size 2",
+    # "apply_command" : "python models/fasttext_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+    #},
+
+    #{"name" : "Seal",
+    # "train_command" : "python models/seal_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --epochs 100",
+    # "apply_command" : "python models/seal_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+    #},
+
 ]
 
 # Whether to distribute processing across a PBS system via 'qsub' et al.

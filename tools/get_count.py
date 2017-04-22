@@ -1,5 +1,4 @@
 import gzip
-#import codecs
 from data_io import get_count, writer
 
 #writer = codecs.getwriter("utf-8")

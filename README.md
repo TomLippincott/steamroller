@@ -15,28 +15,37 @@ And an R library:
 
 * ggplot2
 
-Of course, the models being tested have dependencies of their own.  To run the example, you will need:
+Of course, the models being tested have dependencies of their own.  The default configuration uses the `scikit-learn` package, which can be installed with:
 
-* scikit-learn
-* pip install https://storage.googleapis.com/tensorflow_fold/tensorflow_fold-0.0.1-cp27-none-linux_x86_64.whl
+```
+pip install scikit-learn --user
+```
 
 ### Run the example
 
-Copy the file `custom.py.template` to `custom.py`, and run:
+Copy the file `custom.py.template` to `custom.py`, copy the data sets into the `tasks/` subdirectory, and run:
 
 ```
 scons -Q
 ```
 
-to perform the predefined experiments.
+to perform the predefined experiments.  By default everything will run on the local machine: if you are running on a grid like Univa or Sun Grid Engine you can set the variable `GRID=True` in `custom.py` and the entire build graph will be submitted to the HPC cluster.  SteamRoller will print out lots of information as it submits jobs and then exit.  The jobs are now running on the grid: you can monitor them with `qstat` until the results are ready.
 
 ## Adding your own experiments
 
 ### Define a task
 
-The convention is that any file under `tasks/` represents a classification task, and should be a gzipped tar archive of Concrete Communications.
+The convention is that any file under `tasks/` represents a classification task, and should be a gzipped tar archive of Concrete Communications: see the examples in `custom.py.template`.  If you have your data in a text file with lines of `ID<tab>LABEL<tab>TEXT`, e.g.:
 
-text file with lines in the format `ID TAG TEXT`.  For example, you can look at `tasks/english_spanish_lid.txt.gz`, corresponding to a task called `English Spanish LID`.
+```
+1235435    Spanish    Hola! Donde esta la biblioteca?
+```
+
+you can use the script `tools/convert_text_to_concrete.py` to create an appropriate tar archive of simple Communications:
+
+```
+python tools/convert_text_to_concrete.py -i YOUR_TEXT_FILE -o OUTPUT.tgz
+```
 
 ### Instantiate a model
 
@@ -66,4 +75,12 @@ Since SCons is running each experiment by invoking user-defined scripts to train
 
 SCons is a very open-ended build system, and with Python being a dynamic language, it can be difficult to manage complexity.  So, you're encouraged to work in the patterns described above, adding experiments through the `custom.py` file.  If you run into a use-case that seems important but unsupported, feel free to contact me (tom@cs.jhu.edu).  If it represents a significant new class of experiments, maybe it warrants a new dedicated project!
 
-## Why is everything a script?
+## Questions
+
+### Why is everything a script?
+
+This is so we can easily run on an HPC grid.  Because of some design decisions inside SCons regarding build state and threading, it would be difficult to parallelize builders defined directly in terms of function calls.  Making every builder its own script also allows more flexibility in how models are implemented, particularly by non-Python coders.
+
+### What about hyper-parameter search and the like?
+
+There's nothing stopping you from generating lots of experiments over a range of hyper-parameter values ("grid search") and it would even be trivial to add visualization for this.  However, this adds another factor to the combinatorial space of experiments, and really the purpose of SteamRoller is *fair* comparisons: if a model requires a grid search to realize top performance, it should pay the price for this by optimizing in its training script.  This also saves us the complexity of thinking about dev splits and the like in SteamRoller itself.

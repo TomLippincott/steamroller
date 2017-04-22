@@ -39,7 +39,7 @@ if __name__ == "__main__":
     
     vals = {}
     for f in options.inputs:
-        task, model, size, fold, _ = re.match(r"^work/(.*)_(.*)_(.*)_(.*?)(\.|_).*txt$", f).groups()
+        task, model, size, fold, _ = re.match(r"^work/(.*?)_(.*?)_(.*?)_(.*?)(\.|_).*txt$", f).groups()
         size = int(size)
         fold = int(fold)
         with open(f) as ifd:
@@ -48,8 +48,8 @@ if __name__ == "__main__":
             vals[key] = (res["maxresidentset"], res["usertime"])
 
     with gzip.open(options.output, "w") as ofd:
-        c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "Memory", "CPU"], delimiter="\t")
+        c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "Memory (G)", "CPU (s)"], delimiter="\t")
         c.writeheader()
         for (task, size, model, fold), (mem, cpu) in sorted(vals.iteritems()):
-            c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "Memory" : mem, "CPU" : cpu})
+            c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "Memory (G)" : mem / 1000000.0, "CPU (s)" : cpu})
 
