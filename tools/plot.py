@@ -6,6 +6,7 @@ import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 import numpy
 import gzip
+import csv
 
 grdevices = importr('grDevices')
 
@@ -15,6 +16,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--output", dest="output")
+    parser.add_argument("-f", "--field", dest="field")
     parser.add_argument(nargs="+", dest="inputs")
     options = parser.parse_args()
 
@@ -25,11 +27,13 @@ if __name__ == "__main__":
     data = []
     for s in options.inputs:
         with gzip.open(s) as ifd:
-            for line in ifd:
-                task, model, size, fold, score = line.strip().split("\t")
-                data.append((task, model, int(size), int(fold), float(score)))
+            #c = 
+            #fields = ifd.readline().strip().split("\t")
+            for row in csv.DictReader(ifd, delimiter="\t"): # in ifd:
+                #task, model, size, fold, score = line.strip().split("\t")
+                #print row
+                data.append((row["task"], row["model"], int(row["size"]), int(row["fold"]), float(row[options.field])))
                 
-    names = ["task", "model", "size", "score", "plus", "minus"]
     df = ro.DataFrame({
         "task" : ro.StrVector([x[0] for x in data]),
         "model" : ro.StrVector([x[1] for x in data]),
@@ -42,9 +46,13 @@ if __name__ == "__main__":
     x = ggplot(df) + \
         ggplot2.aes_string(x="factor(size)", y="score", col="factor(model)") + \
         ggplot2.geom_boxplot() + \
-        ggplot2.theme_bw(text=ggplot2.element_text(size=20, family="serif"), legend_title=ggplot2.element_blank(), plot_title=ggplot2.element_text(hjust=.5, size=20, family="serif")) + \
-        ggplot2.ggtitle(task.title()) + \
-        ggplot2.labs(y="Average Class F-Score (equally-weighted)", x="Document Count (logarithmic)")
+        ggplot2.theme_bw() + \
+        ggplot2.theme(text=ggplot2.element_text(size=20, family="serif"),
+                      #legend_position="none",
+                      legend_title=ggplot2.element_blank(), plot_title=ggplot2.element_text(hjust=.5, size=20, family="serif")) + \
+        ggplot2.ggtitle(row["task"].title()) + \
+        ggplot2.labs(y=options.field, x="Document Count (logarithmic)")
+        #
 
     x.plot()
     grdevices.dev_off()

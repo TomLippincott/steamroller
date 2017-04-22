@@ -3,6 +3,7 @@ import numpy
 import re
 from sklearn.metrics import f1_score
 import math
+import csv
 
 if __name__ == "__main__":
 
@@ -46,6 +47,8 @@ if __name__ == "__main__":
             accuracies[key] = accuracies.get(key, []) + [correct / (correct + incorrect)]
 
     with gzip.open(options.output, "w") as ofd:
+        c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "F-Score"], delimiter="\t")
+        c.writeheader()
         for (task, size, model, fold), a in sorted(scores.iteritems()):
             ss = numpy.array(a)
-            ofd.write("\t".join([task, model, str(size), str(fold), "%.3f" % (ss.mean())]) + "\n")
+            c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "F-Score" : ss.mean()})
