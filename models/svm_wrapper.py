@@ -35,17 +35,18 @@ if __name__ == "__main__":
         X = dv.fit_transform(instances)
         scaler = preprocessing.StandardScaler(with_mean=False).fit(X)
         label_lookup = {}
-        #C_range = numpy.logspace(-3, 3, 6)
-        #gamma_range = numpy.logspace(-3, 3, 6)
+        C_range = numpy.logspace(-3, 3, 6)
+        gamma_range = numpy.logspace(-3, 3, 6)
         #param_grid = dict(gamma=gamma_range, C=C_range)
-        #cv = StratifiedShuffleSplit(n_splits=3, test_size=0.2, random_state=42)
+        param_grid = dict(C=C_range)        
+        cv = StratifiedShuffleSplit(n_splits=3, test_size=0.2)
         for l in labels:
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
         y = [label_lookup[l] for l in labels]
-        #grid = GridSearchCV(svm.SVC(), param_grid=param_grid, cv=cv)
-        #grid.fit(X, y)
+        grid = GridSearchCV(svm.SVC(kernel="linear"), param_grid=param_grid, cv=cv)
+        grid.fit(X, y)
         #print grid.best_params_
-        classifier = svm.SVC(probability=True) #, C=grid.best_params_["C"], gamma=grid.best_params_["gamma"])
+        classifier = svm.SVC(kernel="linear", probability=True, C=grid.best_params_["C"]) #, gamma=grid.best_params_["gamma"])
 
         logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
         classifier.fit(scaler.transform(X), [label_lookup[l] for l in labels])

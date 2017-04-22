@@ -3,13 +3,18 @@
 # smaller data set where `sizes` ranges too high, so you could
 # override it in that task definition.
 DEFAULTS = {
-    # What training sizes (number of documents) to run experiments with.
-    "sizes" : [1000, 2000, 4000, 8000, 16000, 32000],
+    # Numbers of documents to run experiments with.
+    "sizes" : [1000, 2000, 4000, 8000, 16000, 32000, 64000],
 
+    # Proportions for random data splits
+    "train" : 0.8,
+    "dev" : 0.1,
+    "test" : 0.1,
+    
     # How many random data folds for each experiment (combination
     # of size and task).  The different models are run on the same
     # folds, i.e. "task X, fold Y" is the same for models A and B.
-    "folds" : 3,
+    "folds" : 5,
 
     # This is a parameter used by the Naive Bayes model (see below).
     "max_ngram" : 4,
@@ -18,20 +23,20 @@ DEFAULTS = {
 # A "task" is just a labeled data set.
 TASKS = [
     {"name" : "LID",
-    "file" : "tasks/lid.txt.gz",     
+    "file" : "tasks/lid.tgz",     
     },    
     {"name" : "Politics",
-    "file" : "tasks/politics.txt.gz",     
+    "file" : "tasks/politics.tgz",     
     },    
     {"name" : "Gender",
-    "file" : "tasks/gender.txt.gz",     
+    "file" : "tasks/gender.tgz",     
     },    
     {"name" : "Events",
-    "file" : "tasks/events.txt.gz",     
+    "file" : "tasks/events.tgz",     
     },
     {"name" : "Age",
-     "file" : "tasks/age.txt.gz",     
-    },        
+     "file" : "tasks/age.tgz",     
+    },
 ]
 
 # A "model" provides two commands: one for training, the other for
@@ -82,16 +87,8 @@ MODELS = [
     {"name" : "Prior",
      "train_command" : "python models/prior_wrapper.py --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]}",
      "apply_command" : "python models/prior_wrapper.py --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
-    }    
-
-    
+    }
 ]
-
-#
-# If desired, you can filter out models and tasks here.
-#
-MODELS = [k for k in MODELS if k["name"]] # in ["Seal"]] #, "NaiveBayes", "VaLID", "LogisticRegression", "SVM"]] #, "Seal"]]
-TASKS = [t for t in TASKS if t["name"]] # in ["Age"]] #, "LID", "Politics", "Gender", "Events"]]
 
 # Whether to distribute processing across a PBS system via 'qsub' et al.
 GRID = False
