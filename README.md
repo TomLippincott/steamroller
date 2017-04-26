@@ -29,7 +29,9 @@ Copy the file `custom.py.template` to `custom.py`, copy the data sets into the `
 scons -Q
 ```
 
-to perform the predefined experiments.  By default everything will run on the local machine: if you are running on a grid like Univa or Sun Grid Engine you can set the variable `GRID=True` in `custom.py` and the entire build graph will be submitted to the HPC cluster.  SteamRoller will print out lots of information as it submits jobs and then exit.  The jobs are now running on the grid: you can monitor them with `qstat` until the results are ready.
+to perform the predefined experiments.  By default everything will run on the local machine: if you are running on a grid like Univa or Sun Grid Engine you can set the variable `GRID=True` in `custom.py` and the entire build graph will be submitted to the HPC cluster.  SteamRoller will print out lots of information as it submits jobs, and then start printing out the current number of running, waiting, and held jobs for the current user every 30 seconds.  When all jobs are complete, it exits.
+
+Note: if you would like to stop the experiments early, in addition to killing the SCons process, you should also remove the grid jobs by running something like `qdel -u USERNAME`.
 
 ## Adding your own experiments
 

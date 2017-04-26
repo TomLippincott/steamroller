@@ -45,12 +45,12 @@ if __name__ == "__main__":
         except:
             classifier = linear_model.LogisticRegression(class_weight="balanced", solver="sag", multi_class="multinomial", max_iter=40000)
             classifier.fit(X, [label_lookup[l] for l in labels])
-        with open(options.output, "w") as ofd:
+        with gzip.open(options.output, "w") as ofd:
             pickle.dump((classifier, dv, label_lookup), ofd)            
 
     # testing
     elif options.test and options.model and options.output and options.input:
-        with open(options.model) as ifd:
+        with gzip.open(options.model) as ifd:
             classifier, dv, label_lookup = pickle.load(ifd)
         instances, gold = [], []
         for cid, label, text in read_data(options.input, options.test):
