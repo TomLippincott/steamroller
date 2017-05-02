@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from valid.model import Compressor, LidClassifier
 import gzip
 import codecs

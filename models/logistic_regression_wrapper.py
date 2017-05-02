@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import gzip
 from sklearn import linear_model, metrics
 from sklearn.feature_extraction import DictVectorizer

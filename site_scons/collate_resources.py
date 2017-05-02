@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import gzip
 import re
 import math
@@ -48,8 +50,8 @@ if __name__ == "__main__":
             vals[key] = (res["maxresidentset"], res["usertime"])
 
     with gzip.open(options.output, "w") as ofd:
-        c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "Memory (G)", "CPU (s)"], delimiter="\t")
+        c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "Memory", "CPU"], delimiter="\t")
         c.writeheader()
         for (task, size, model, fold), (mem, cpu) in sorted(vals.iteritems()):
-            c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "Memory (G)" : mem / 1000000.0, "CPU (s)" : cpu})
+            c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "Memory" : mem / 1000000.0, "CPU" : cpu})
 

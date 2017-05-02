@@ -1,8 +1,7 @@
+#!/usr/bin/env python
+
 import gzip
 from data_io import get_count, writer
-
-#writer = codecs.getwriter("utf-8")
-#reader = codecs.getreader("utf-8")
 
 if __name__ == "__main__":
 

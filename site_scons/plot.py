@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import readline
 import rpy2
 import rpy2.robjects.lib.ggplot2 as ggplot2

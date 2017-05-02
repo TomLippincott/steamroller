@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from concrete import Communication, AnnotationMetadata, CommunicationTagging, Section, Sentence, TextSpan, CommunicationTagging
 import gzip
 import codecs

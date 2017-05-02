@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import gzip
 from sklearn import svm
 from sklearn.feature_extraction import DictVectorizer
@@ -44,9 +46,13 @@ if __name__ == "__main__":
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
         y = [label_lookup[l] for l in labels]
         grid = GridSearchCV(svm.SVC(kernel="linear"), param_grid=param_grid, cv=cv)
-        grid.fit(X, y)
+        try:
+            grid.fit(X, y)
+            C = grid.best_params_["C"]
+        except:
+            C = 1.0
         #print grid.best_params_
-        classifier = svm.SVC(kernel="linear", probability=True, C=grid.best_params_["C"]) #, gamma=grid.best_params_["gamma"])
+        classifier = svm.SVC(kernel="linear", probability=True, C=C) #, gamma=grid.best_params_["gamma"])
 
         logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
         classifier.fit(scaler.transform(X), [label_lookup[l] for l in labels])

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import re
 import gzip
 import pickle
@@ -270,8 +272,8 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", dest="learning_rate", default=.001, type=float)
 
     parser.add_argument("--epochs", dest="epochs", default=100, type=int)
-    parser.add_argument("--batch_size", dest="batch_size", default=128, type=int)
-    parser.add_argument("--batches_per_epoch", dest="batches_per_epoch", default=25, type=int)
+    parser.add_argument("--batch_size", dest="batch_size", default=32, type=int)
+    parser.add_argument("--batches_per_epoch", dest="batches_per_epoch", default=100, type=int)
     options = parser.parse_args()
     
     temppath = tempfile.mkdtemp(prefix="tlippincott-tf")
