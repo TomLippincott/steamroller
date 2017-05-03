@@ -48,11 +48,6 @@ env['PRINT_CMD_LINE_FUNC'] = print_cmd_line
 env.Decider("timestamp-newer")
 
 
-preprocessing_targets = []
-training_targets = []
-classification_targets = []
-plotting_targets = []
-
 for task in env["TASKS"]:
     classified_items = []
     train_resource_list = []
@@ -61,60 +56,46 @@ for task in env["TASKS"]:
     task_name = task["name"]
     train_proportion = task.get("train_proportion", defaults.get("train_proportion", .9))
     input_file = env.File(task["file"])
-    count_file = env.GetCount("work/${TASK_NAME}_total.txt.gz", input_file, TASK_NAME=task_name)[0]
-                              #.format(task_name=task_name), input_file)[0]
+    count_file, _ = env.GetCount("work/${TASK_NAME}_total.txt.gz", input_file, TASK_NAME=task_name)
     
     for train_count in task.get("sizes", defaults.get("sizes", [])):
         for fold in range(1, task.get("folds", defaults.get("folds", 1)) + 1):
 
-            train, test = env.CreateSplit(["work/${TASK_NAME}_train_${FOLD}_${TRAIN_COUNT}_${TEST_COUNT}.txt.gz",
+            train, test, _ = env.CreateSplit(["work/${TASK_NAME}_train_${FOLD}_${TRAIN_COUNT}_${TEST_COUNT}.txt.gz",
                                            "work/${TASK_NAME}_test_${FOLD}_${TRAIN_COUNT}_${TEST_COUNT}.txt.gz"],
-                                          count_file, FOLD=fold, TRAIN_COUNT=train_count, TASK_NAME=task_name)[0:2]
-                                          #% (task_name, x, train_count, fold) for x in ["train", "test"]],
-                                          #[count_file, env.Value(train_count), env.Value(env["TEST_COUNT"])])[0:2]
-            #preprocessing_targets += [train, test, resources]
-            #continue
+                                          count_file, FOLD=fold, TRAIN_COUNT=train_count, TASK_NAME=task_name)
+
             for model in env["MODELS"]:
                 model_name = model["name"]
                 train_builder = env["BUILDERS"]["Train%s" % model_name]
-                #continue
-                #apply_builder = env["BUILDERS"]["Apply%s" % model_name]
-                continue
+                apply_builder = env["BUILDERS"]["Apply%s" % model_name]
                 model_file, resources = train_builder(env,
-                                                      "work/%s_%s_%s_%s.model.gz" % (task_name, model_name, train_count, fold),
+                                                      "work/${TASK_NAME}_${MODEL_NAME}_${TRAIN_COUNT}_${FOLD}.model.gz",
                                                       [train, input_file],
+                                                      FOLD=fold, TRAIN_COUNT=train_count, TASK_NAME=task_name, MODEL_NAME=model_name,
                                                       GRID_RESOURCES=model.get("grid_resources", env["GRID_RESOURCES"]),
-                                                  )[0:2]
-                continue
+                                                  )
+
                 train_resource_list.append(resources)
                 model_list.append(model_file)
-                training_targets.append(model_file)
-                
-                classified, resources = apply_builder(env,
-                                                      "work/%s_%s_%s_%s_results.txt.gz" % (task_name, model_name, train_count, fold),
-                                                      [model_file, test, input_file],
-                                                      GRID_RESOURCES=model.get("grid_resources", []),
+                classified, _ = apply_builder(env,
+                                              "work/${TASK_NAME}_${MODEL_NAME}_${TRAIN_COUNT}_${FOLD}_probabilities.txt.gz",
+                                              [model_file, test, input_file],
+                                              FOLD=fold, TRAIN_COUNT=train_count, TASK_NAME=task_name, MODEL_NAME=model_name,
+                                              GRID_RESOURCES=model.get("grid_resources", []),
                 )
                 apply_resource_list.append(resources)
                 classified_items.append(classified)
-                classification_targets.append(classified)
-#     plots = []
-#     if len(classified_items) > 0:
-#         scores, _ = env.Evaluate("work/%s_scores.txt.gz" % (task_name), classified_items)
-#         train_resources, _ = env.CollateResources("work/%s_trainresources.txt.gz" % (task_name), train_resource_list)
-#         apply_resources, _ = env.CollateResources("work/%s_applyresources.txt.gz" % (task_name), apply_resource_list)
-#         model_sizes, _ = env.ModelSizes("work/%s_modelsizes.txt.gz" % (task_name), model_list)
-#         plotting_targets.append(env.Plot("work/%s_trainmemory_plot.png" % (task_name), train_resources, FIELD="Memory"))
-#         plotting_targets.append(env.Plot("work/%s_traincpu_plot.png" % (task_name), train_resources, FIELD="CPU"))
-#         plotting_targets.append(env.Plot("work/%s_applymemory_plot.png" % (task_name), apply_resources, FIELD="Memory"))
-#         plotting_targets.append(env.Plot("work/%s_applycpu_plot.png" % (task_name), apply_resources, FIELD="CPU"))
-#         plotting_targets.append(env.Plot("work/%s_modelsize_plot.png" % (task_name), model_sizes, FIELD="Gigabytes"))
-#         plotting_targets.append(env.Plot("work/%s_fscore_plot.png" % (task_name), scores, FIELD="F-Score"))
 
-# env.Alias("preprocess", preprocessing_targets)
-# env.Alias("train", training_targets)
-# env.Alias("classify", classification_targets)
-# env.Alias("plot", plotting_targets)
-
-if env["GRID"]:
-    env.WaitForGrid("work/grid_complete.txt", [])
+    plots = []
+    if len(classified_items) > 0:
+        scores, _ = env.Evaluate("work/%s_scores.txt.gz" % (task_name), classified_items)
+        train_resources, _ = env.CollateResources("work/%s_trainresources.txt.gz" % (task_name), train_resource_list)
+        apply_resources, _ = env.CollateResources("work/%s_applyresources.txt.gz" % (task_name), apply_resource_list)
+        model_sizes, _ = env.ModelSizes("work/%s_modelsizes.txt.gz" % (task_name), model_list)
+        plotting_targets.append(env.Plot("work/%s_trainmemory_plot.png" % (task_name), train_resources, FIELD="Memory"))
+        plotting_targets.append(env.Plot("work/%s_traincpu_plot.png" % (task_name), train_resources, FIELD="CPU"))
+        plotting_targets.append(env.Plot("work/%s_applymemory_plot.png" % (task_name), apply_resources, FIELD="Memory"))
+        plotting_targets.append(env.Plot("work/%s_applycpu_plot.png" % (task_name), apply_resources, FIELD="CPU"))
+        plotting_targets.append(env.Plot("work/%s_modelsize_plot.png" % (task_name), model_sizes, FIELD="Gigabytes"))
+        plotting_targets.append(env.Plot("work/%s_fscore_plot.png" % (task_name), scores, FIELD="F-Score"))
