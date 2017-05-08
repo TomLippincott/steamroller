@@ -11,7 +11,7 @@ import shlex
 def qsub(command, name, std, dep_ids=[], grid_resources=[]):
     deps = "" if len(dep_ids) == 0 else "-hold_jid {}".format(",".join([str(x) for x in dep_ids]))
     res = "" if len(grid_resources) == 0 else "-l {}".format(",".join([str(x) for x in grid_resources]))
-    qcommand = "qsub -v PATH -v PYTHONPATH -N {} -b y -cwd -j y -terse -o {} {} {}".format(name, std, deps, res) + command
+    qcommand = "qsub -v PATH -v PYTHONPATH -N {} -b y -cwd -j y -terse -o {} {} {} ".format(name, std, deps, res) + command
     logging.info(qcommand)
     p = subprocess.Popen(shlex.split(qcommand), stdout=subprocess.PIPE)
     out, err = p.communicate()

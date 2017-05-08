@@ -4,6 +4,7 @@ import gzip
 from sklearn import svm
 from sklearn.feature_extraction import DictVectorizer
 from sklearn import preprocessing
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV, StratifiedShuffleSplit
 import pickle
 import codecs
@@ -37,22 +38,23 @@ if __name__ == "__main__":
         X = dv.fit_transform(instances)
         scaler = preprocessing.StandardScaler(with_mean=False).fit(X)
         label_lookup = {}
-        C_range = numpy.logspace(-3, 3, 4)
-        gamma_range = numpy.logspace(-3, 3, 4)
+        #C_range = numpy.logspace(-3, 3, 6)
+        #gamma_range = numpy.logspace(-3, 3, 6)
         #param_grid = dict(gamma=gamma_range, C=C_range)
-        param_grid = dict(C=C_range)        
-        cv = StratifiedShuffleSplit(n_splits=3, test_size=0.2)
+        #param_grid = dict(C=C_range)        
+        #cv = StratifiedShuffleSplit(n_splits=3, test_size=0.2)
         for l in labels:
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
         y = [label_lookup[l] for l in labels]
-        grid = GridSearchCV(svm.SVC(kernel="linear"), param_grid=param_grid, cv=cv)
-        try:
-            grid.fit(X, y)
-            C = grid.best_params_["C"]
-        except:
-            C = 1.0
+        #grid = GridSearchCV(svm.SVC(kernel="linear"), param_grid=param_grid, cv=cv)
+        #try:
+        #    grid.fit(X, y)
+        #    C = grid.best_params_["C"]
+        #except:
+        #    C = 1.0
         #print grid.best_params_
-        classifier = svm.SVC(kernel="linear", probability=True, C=C) #, gamma=grid.best_params_["gamma"])
+        classifier = RandomForestClassifier(class_weight="balanced")
+        #svm.SVC(kernel="linear", probability=True, C=C) #, gamma=grid.best_params_["gamma"])
 
         logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
         classifier.fit(scaler.transform(X), [label_lookup[l] for l in labels])
