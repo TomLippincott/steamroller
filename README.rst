@@ -1,41 +1,58 @@
-# SteamRoller ![Logo](logo.png)
+------
+SteamRoller |Logo|
+------
 
 SteamRoller is a framework for testing the performance of various machine learning models on different tasks in the broad area of "text classification".  It is designed to make it extremely easy to define new classification tasks, and new models, and drop them in to compare ther characteristics.  It discourages doing anything "special" for different tasks, models, or combinations thereof, to ensure the comparisons are fair and expose all the costs incurred by the different choices.
 
-## Getting started
+SteamRoller's user-facing functionality is reflected by four submodules:
 
-### Requirements
+1. tasks
+2. models
+3. metrics
+4. plots
 
-The framework only requires two Python libraries:
+Under the hood, SteamRoller has three additional submodules:
 
-* scons
-* rpy2
+1. tools
+2. scons
+3. ui
 
-And an R library:
+As explained below, changes to the code are usually unnecessary, as the most common conceptual classes (tasks and models) can be extended simply by editing the configuration file.
 
-* ggplot2
+------
+Getting started
+------
 
-Of course, the models being tested have dependencies of their own.  The default configuration uses the `scikit-learn` package, which can be installed with:
+SteamRoller and its dependencies can be installed with ``pip install steamroller --user``.  An empty directory can be initialized for performing experiments by executing ``steamroller init`` from therein.  This creates two files: *SConstruct*, and *steamroller_config.py*.  You can then run ``steamroller run`` to perform the predefined experiments, and ``steamroller serve`` to launch the results web server.  Most of SteamRoller's extensibility is through editing *steamroller_config.py*, while more advanced users may find it useful to edit *SConstruct*.
 
-```
-pip install scikit-learn --user
-```
+----
+Using an HPC Grid
+----
 
-### Run the example
+By default, *steamroller_config.py* will set ``GRID=False``, and experiments will run serially on the local machine.  If you are running on an HPC grid like Univa, Sun Grid Engine, or Torque, setting ``GRID=True`` instructs SteamRoller to run experiments via the *qsub* command.  Since the jobs are distributed across the grid, the invocation of SteamRoller will submit them and then *wait* until they have completed, polling the scheduler and printing the current number of running jobs.  If you interrupt the SteamRoller command in this state, *the grid jobs will continue to run*, so you can either allow them to do so (e.g. if the interruption was accidental), or manually kill the running jobs with a command like ``qdel -u USERNAME``.  The latter is particularly important if you want to change and rerun experiments, as otherwise you may have multiple jobs simultaneously building the same output file.
 
-Copy the file `custom.py.template` to `custom.py`, copy the data sets into the `tasks/` subdirectory, and run:
+----
+Viewing results
+----
 
-```
-scons -Q
-```
+Once the experiments have finished, you will want to compare their performance.  
 
-to perform the predefined experiments.  By default everything will run on the local machine: if you are running on a grid like Univa or Sun Grid Engine you can set the variable `GRID=True` in `custom.py` and the entire build graph will be submitted to the HPC cluster.  SteamRoller will print out lots of information as it submits jobs, and then start printing out the current number of running, waiting, and held jobs for the current user every 30 seconds.  When all jobs are complete, it exits.
+----
+Defining a new task
+----
 
-Note: if you would like to stop the experiments early, in addition to killing the SCons process, you should also remove the grid jobs by running something like `qdel -u USERNAME`.
+----
+Defining a new model
+----
 
-## Adding your own experiments
+----
+FAQ
+----
 
-### Define a task
+.. |Logo|   image:: logo.png
+
+
+
 
 The convention is that any file under `tasks/` represents a classification task, and should be a gzipped tar archive of Concrete Communications: see the examples in `custom.py.template`.  If you have your data in a text file with lines of `ID<tab>LABEL<tab>TEXT`, e.g.:
 
@@ -86,3 +103,4 @@ This is so we can easily run on an HPC grid.  Because of some design decisions i
 ### What about hyper-parameter search and the like?
 
 There's nothing stopping you from generating lots of experiments over a range of hyper-parameter values ("grid search") and it would even be trivial to add visualization for this.  However, this adds another factor to the combinatorial space of experiments, and really the purpose of SteamRoller is *fair* comparisons: if a model requires a grid search to realize top performance, it should pay the price for this by optimizing in its training script.  This also saves us the complexity of thinking about dev splits and the like in SteamRoller itself.
+
