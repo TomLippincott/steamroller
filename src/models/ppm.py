@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from valid.model import Compressor, LidClassifier
+from valid.model import Compressor, Classifier
 import gzip
 import codecs
 from itertools import chain
@@ -8,7 +8,7 @@ import pickle
 import logging
 import math
 import numpy
-from data_io import read_data, write_probabilities, writer, reader
+from steamroller.tools.io import read_data, write_probabilities, writer, reader
 
 if __name__ == "__main__":
 
@@ -34,7 +34,7 @@ if __name__ == "__main__":
             compressors[label] = compressors.get(label, Compressor(label, options.max_ngram))
             compressors[label].add(text)
 
-        model = LidClassifier()
+        model = Classifier()
         for l, c in compressors.iteritems():
             model.add(c, l)
 

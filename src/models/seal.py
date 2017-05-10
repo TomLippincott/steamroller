@@ -1,29 +1,5 @@
 #!/usr/bin/env python
 
-import re
-import gzip
-import pickle
-import codecs
-import logging
-from functools import partial
-from itertools import chain
-import random
-import tempfile
-import shutil
-import os.path
-import tarfile
-from glob import glob
-import tensorflow as tf
-from tensorflow.python.ops import math_ops, array_ops
-from tensorflow.python.ops import variable_scope as vs
-import tensorflow.contrib.seq2seq as seq2seq
-import tensorflow_fold as td
-import tensorflow_fold.blocks.blocks
-import tensorflow_fold.blocks.result_types as tdt
-from tensorflow_fold.blocks.plan import build_optimizer_from_params
-from tqdm import tqdm
-import numpy
-from data_io import read_data, write_probabilities, writer, reader, extract_character_ngrams
 
 
 #
@@ -251,6 +227,30 @@ class SequenceModel(object):
 
 
 if __name__ == "__main__":
+    import re
+    import gzip
+    import pickle
+    import codecs
+    import logging
+    from functools import partial
+    from itertools import chain
+    import random
+    import tempfile
+    import shutil
+    import os.path
+    import tarfile
+    from glob import glob
+    import tensorflow as tf
+    from tensorflow.python.ops import math_ops, array_ops
+    from tensorflow.python.ops import variable_scope as vs
+    import tensorflow.contrib.seq2seq as seq2seq
+    import tensorflow_fold as td
+    import tensorflow_fold.blocks.blocks
+    import tensorflow_fold.blocks.result_types as tdt
+    from tensorflow_fold.blocks.plan import build_optimizer_from_params
+    from tqdm import tqdm
+    import numpy
+    from steamroller.tools.io import read_data, write_probabilities, writer, reader, extract_character_ngrams
 
     import argparse
 

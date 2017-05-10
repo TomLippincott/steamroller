@@ -7,7 +7,6 @@ import logging
 import time
 import shlex
 
-
 def qsub(command, name, std, dep_ids=[], grid_resources=[]):
     deps = "" if len(dep_ids) == 0 else "-hold_jid {}".format(",".join([str(x) for x in dep_ids]))
     res = "" if len(grid_resources) == 0 else "-l {}".format(",".join([str(x) for x in grid_resources]))
@@ -20,7 +19,7 @@ def qsub(command, name, std, dep_ids=[], grid_resources=[]):
 
 def make_emitter(script):
     def emitter(target, source, env):
-        [env.Depends(t, script) for t in target]
+        #[env.Depends(t, script) for t in target]
         return (target + [target[0].rstr() + ".resources.txt"], source)
     return emitter
 
@@ -46,12 +45,12 @@ def generate(env):
     )
 
     for name, command in [
-            ("GetCount", "site_scons/get_count.py --input ${SOURCES[0]} --output ${TARGETS[0]}"),
-            ("CreateSplit", "site_scons/create_split.py --total_file ${SOURCES[0]} --train_count ${TRAIN_COUNT} --test_count ${TEST_COUNT} --train ${TARGETS[0]} --test ${TARGETS[1]}"),
-            ("Evaluate", "site_scons/evaluate.py -o ${TARGETS[0]} ${SOURCES}"),
-            ("CollateResources", "site_scons/collate_resources.py -o ${TARGETS[0]} ${SOURCES}"),
-            ("ModelSizes", "site_scons/model_sizes.py -o ${TARGETS[0]} ${SOURCES}"),        
-            ("Plot", "site_scons/plot.py -o ${TARGETS[0]} -f \"${FIELD}\" ${SOURCES}"),
+            ("GetCount", "python -m steamroller.tools.count --input ${SOURCES[0]} --output ${TARGETS[0]}"),
+            ("CreateSplit", "python -m steamroller.tools.split --total_file ${SOURCES[0]} --train_count ${TRAIN_COUNT} --test_count ${TEST_COUNT} --train ${TARGETS[0]} --test ${TARGETS[1]}"),
+            ("Evaluate", "python -m steamroller.metrics.fscore -o ${TARGETS[0]} ${SOURCES}"),
+            ("CollateResources", "python -m steamroller.tools.resources -o ${TARGETS[0]} ${SOURCES}"),
+            ("ModelSizes", "python -m steamroller.tools.model_sizes -o ${TARGETS[0]} ${SOURCES}"),        
+            ("Plot", "python -m steamroller.plots.whisker -o ${TARGETS[0]} -f \"${FIELD}\" -t \"${TITLE}\" ${SOURCES}"),
     ]:
         env["BUILDERS"][name] = make_builder(env, command, name)
         
@@ -59,7 +58,7 @@ def generate(env):
         env["BUILDERS"]["Train{}".format(model["name"])] = make_builder(env, model["train_command"], "Train{}".format(model["name"]))
         env["BUILDERS"]["Apply{}".format(model["name"])] = make_builder(env, model["apply_command"], "Apply{}".format(model["name"]))
 
-    def wait_for_grid(target, source, env):    
+    def wait_for_grid(target, source, env):
         while True:
             p = subprocess.Popen(["qstat"], stdout=subprocess.PIPE)
             out, err = p.communicate()   

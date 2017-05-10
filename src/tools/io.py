@@ -33,7 +33,6 @@ def read_data(data_file, num_file, tag_type="attribute"):
     logging.info("Read %d Communications", len(items))
     return items
 
-
 def write_probabilities(data, output_file):
     """
     data = {"ID" : ("GOLD", {"LAB1" : logprob, ... })

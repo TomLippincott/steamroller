@@ -1,0 +1,22 @@
+#!/bin/bash
+
+python -m steamroller "$@"
+
+# USAGE="steamroller (init|run|serve) OPTIONS"
+# SCONSTRUCT=/home/tom/projects/steamroller/SConstruct
+
+# if [ "$1" == "init" ]
+# then
+#     if [ ! -x SConstruct ]
+#     then
+# 	echo 1 > SConstruct
+#     fi
+# elif [ "$1" == "run" ]
+# then
+#     scons -f $SCONSTRUCT -C . --no-site-dir -Q
+# elif [ "$1" == "serve" ]
+# then
+#     echo python -m steamroller -p ${2:-8080}
+# else
+#     echo $USAGE
+# fi

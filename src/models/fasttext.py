@@ -12,7 +12,7 @@ import shlex
 import shutil
 import math
 import re
-from data_io import read_data, write_probabilities, writer, reader
+from steamroller.tools.io import read_data, write_probabilities, writer, reader
 
 if __name__ == "__main__":
     

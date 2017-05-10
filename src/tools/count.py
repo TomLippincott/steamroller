@@ -1,7 +1,5 @@
-#!/usr/bin/env python
-
 import gzip
-from data_io import get_count, writer
+from io import get_count, writer
 
 if __name__ == "__main__":
 
@@ -13,9 +11,5 @@ if __name__ == "__main__":
     options = parser.parse_args()
 
     n = get_count(options.input)
-    #counter = 0
-    #with reader(gzip.open(options.input)) as ifd:
-    #    for line in ifd:
-    #        counter += 1
     with writer(gzip.open(options.output, "w")) as ofd:
         ofd.write(str(n))

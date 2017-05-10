@@ -3,10 +3,7 @@
 import gzip
 import codecs
 import random
-import data_io
-
-writer = codecs.getwriter("utf-8")
-reader = codecs.getreader("utf-8")
+from io import reader, writer
 
 if __name__ == "__main__":
 

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import gzip
 import numpy
 import re
@@ -49,8 +47,8 @@ if __name__ == "__main__":
             accuracies[key] = accuracies.get(key, []) + [correct / (correct + incorrect)]
 
     with gzip.open(options.output, "w") as ofd:
-        c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "F-Score"], delimiter="\t")
+        c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "F_Score"], delimiter="\t")
         c.writeheader()
         for (task, size, model, fold), a in sorted(scores.iteritems()):
             ss = numpy.array(a)
-            c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "F-Score" : ss.mean()})
+            c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "F_Score" : ss.mean()})
