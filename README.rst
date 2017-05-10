@@ -35,16 +35,57 @@ By default, *steamroller_config.py* will set ``GRID=False``, and experiments wil
 Viewing results
 ----
 
-Once the experiments have finished, you will want to compare their performance.  
+Once the experiments have finished, you will want to compare their performance.  Generally, the final product of a set of SteamRoller experiments is a plot of some metric (accuracy, run-time, memory usage, etc) with respect to some other variable (number of training examples, hyper-parameter value, etc).  Running ``steamroller serve`` will, by default, start a web server at *http://localhost:8080* with links to the plots generated for each task, or you can examine the figures directly in the *work/* subdirectory.
 
 ----
 Defining a new task
 ----
 
+In SteamRoller, a *task* is simply a pointer to documents annotated with discrete labels.  For example, the default *steamroller_config.py* file has the following entry::
+
+   TASKS = [
+     {"name" : "SampleData",
+      "file" : "sample_data.tgz"
+     }
+   ]
+
+That's it.  We use the *Concrete* data format, so the file is a tar archive where each entry is a *Communication* object, but SteamRoller has functionality to convert simple text formats.  If your data is a text file with lines in tab-separated format::
+
+  ID LABEL TEXT
+
+or::
+
+  LABEL TEXT
+
+you can create an appropriate Concrete tar archive by running ``python -m steamroller.tools.convert -i TEXT_FILE -o TAR_FILE``.  Make sure that any tab characters in the text column are appropriately escaped (SteamRoller uses Python's *csv* module).
+  
 ----
 Defining a new model
 ----
 
+A *model* in SteamRoller is defined by the command-line processes for:
+
+1. Training based on some data
+2. Applying to some new data
+
+Looking again at the default *steamroller_config.py*, there is an entry::
+
+  MODELS = [
+      {"name" : "SVM",
+      "train_command" : "python -m steamroller.models.scikit_learn --type svm --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+      "apply_command" : "python -m steamroller.models.scikit_learn --type svm --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",     
+      },
+    ]
+
+*train_command*, when the template strings are replaced by SteamRoller, will train an SVM based on an input file (i.e. the tar archive mentioned earlier) and a train file that is a list of indices in the tar file.  The resulting SVM is serialized into the output file.  Note the MAX_NGRAM template string: this is a *hyper-parameter* that you might set directly in the *steamroller_config.py* file, or perhaps perform grid search over to find optimal values.
+
+*apply_command*, again once the template strings are replaced, will read in a serialized SVM and apply it to the instances specified in *--test*.  It writes log-probabilities to the output file in the tab-separated format::
+
+  ID     GOLD   LABEL1 LABEL2 ...
+  321321 LABEL2 -.03   -.0025
+
+SteamRoller comes with several common models predefined based on the Scikit-Learn suite, which is why these commands are invoking parts of SteamRoller itself, but the only requirement is that the commands meet the criteria described above and can run on the relevant machines (locally or across a grid).
+  
 ----
 FAQ
 ----

@@ -206,18 +206,25 @@ if __name__ == "__main__":
     import flask
     import argparse
     from glob import glob
+    import os.path
+    import logging
     
     parser = argparse.ArgumentParser("steamroller")
-    parser.add_argument("-m", "--mode", dest="mode", required=True, choices=["init", "run", "serve"])
+    parser.add_argument(dest="mode", choices=["init", "run", "serve"])
     parser.add_argument("-p", "--port", dest="port", default=8080, type=int)
     parser.add_argument("-H", "--host", dest="host", default="localhost")
     options = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
     
     if options.mode == "init":
-        with open("SConstruct", "w") as ofd:
-            ofd.write(sconstruct)
-        with open("steamroller_config.py", "w") as ofd:
-            ofd.write(steamroller_config)     
+        if os.path.exists("SConstruct") or os.path.exists("steamroller_config.py"):
+            logging.error("Refusing to overwrite existing SConstruct or steamroller_config.py files")
+        else:
+            with open("SConstruct", "w") as ofd:
+                ofd.write(sconstruct)
+            with open("steamroller_config.py", "w") as ofd:
+                ofd.write(steamroller_config)     
     elif options.mode == "run":
         pass
     elif options.mode == "serve":
