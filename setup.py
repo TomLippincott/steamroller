@@ -3,11 +3,11 @@
 from setuptools import setup
 
 setup(name="SteamRoller",
-      version="1.0.0",
+      version="1.0.1",
       description="An experimental framework for text classification experiments",
       author="Tom Lippincott",
       author_email="tom@cs.jhu.edu",
-      url="http://www.hltcoe.jhu.edu",
+      url="http://hltcoe.jhu.edu",
       maintainer="Tom Lippincott",
       maintainer_email="tom@cs.jhu.edu",
       packages=["steamroller",
