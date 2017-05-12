@@ -20,6 +20,5 @@ setup(name="SteamRoller",
       package_dir={"steamroller" : "src"},
       scripts=["scripts/steamroller"],
       install_requires=["concrete", "scikit-learn", "scons", "plotnine", "seaborn", "tensorflow", "valid"],
-      include_package_data=True,
-      #package_data={"" : ["*rst", "data/SConstruct", "data/steamroller_config.py.template"]},
+      package_data={"" : ["data/SConstruct", "data/steamroller_config.py.template"]},
      )
