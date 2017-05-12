@@ -1,0 +1,63 @@
+# These are general values that can be overridden by specific
+# tasks or models.  For example, you might have a task with a
+# smaller data set where `sizes` ranges too high, so you could
+# override it in that task definition.
+DEFAULTS = {
+    # What training sizes (number of documents) to run experiments with.
+    "sizes" : [1000, 2000, 4000],
+
+    # Proportions for random data splits
+    "train" : 0.9,
+    "test" : 0.1,
+    
+    # How many random data folds for each experiment (combination
+    # of size and task).  The different models are run on the same
+    # folds, i.e. "task X, fold Y" is the same for models A and B.
+    "folds" : 3,
+}
+
+# A "task" is just a labeled data set, in Concrete format.
+TASKS = [
+    {"name" : "SampleData",
+    "file" : "sample_data.tgz",     
+    },
+]
+
+# A "model" provides two commands: one for training, the other for
+# applying.  The entries here specify how these commands are actually
+# invoked, with a few placeholders ("${SOURCES[X]}", "${TARGETS[X]}")
+# for the input provided by the build system.  The commands can have
+# additional placeholders, like "%(max_ngram)s", which then must be
+# defined under DEFAULTS (note the additional placeholders use Python
+# string substitution syntax).
+MODELS = [
+    
+    {"name" : "NaiveBayes",
+     # ${SOURCES[0]} and ${SOURCES[1]}, are the training indices and
+     # input file, respectively, and ${TARGETS[0]} is the file where
+     # the model will be written.
+     "train_command" : "python -m steamroller.models.scikit_learn --type naive_bayes --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+     # ${SOURCES[0]}, ${SOURCES[1]} and ${SOURCES[2]} are the model file,
+     # and input file, respectively, and ${TARGETS[0]} is the file to
+     # write the prediction probabilities to.
+     "apply_command" : "python -m steamroller.models.scikit_learn --type naive_bayes --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+    },
+
+    {"name" : "SVM",
+     "train_command" : "python -m steamroller.models.scikit_learn --type svm --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+     "apply_command" : "python -m steamroller.models.scikit_learn --type svm --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",     
+    },
+    
+    {"name" : "LogisticRegression",
+     "train_command" : "python -m steamroller.models.scikit_learn --type logistic_regression --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+     "apply_command" : "python -m steamroller.models.scikit_learn --type logistic_regression --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+    },
+
+    {"name" : "Prior",
+     "train_command" : "python -m steamroller.models.scikit_learn --type prior --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+     "apply_command" : "python -m steamroller.models.scikit_learn --type prior --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+    },
+]
+
+# Whether to distribute processing across an HPC grid system via 'qsub' et al.
+GRID = False

@@ -29,10 +29,10 @@ SteamRoller and its dependencies can be installed with ``pip install steamroller
 Using an HPC Grid
 ----
 
-By default, *steamroller_config.py* will set ``GRID=False``, and experiments will run serially on the local machine.  If you are running on an HPC grid like Univa, Sun Grid Engine, or Torque, setting ``GRID=True`` instructs SteamRoller to run experiments via the *qsub* command.  Since the jobs are distributed across the grid, the invocation of SteamRoller will submit them and then *wait* until they have completed, polling the scheduler and printing the current number of running jobs.  If you interrupt the SteamRoller command in this state, *the grid jobs will continue to run*, so you can either allow them to do so (e.g. if the interruption was accidental), or manually kill the running jobs with a command like ``qdel -u USERNAME``.  The latter is particularly important if you want to change and rerun experiments, as otherwise you may have multiple jobs simultaneously building the same output file.
+By default, *steamroller_config.py* has ``GRID=False``, and experiments will run serially on the local machine.  If you are running on an HPC grid like Univa, Sun Grid Engine, or Torque, setting ``GRID=True`` instructs SteamRoller to run experiments via the *qsub* command.  Since the jobs are distributed across the grid, the invocation of SteamRoller will submit them and then *wait* until they have completed, polling the scheduler and printing the current number of running jobs.  If you interrupt the SteamRoller command in this state, *the grid jobs will continue to run*, so you can either allow them to do so (e.g. if the interruption was accidental), or manually kill the running jobs with a command like ``qdel -u USERNAME``.  The latter is particularly important if you want to change and rerun experiments, as otherwise you may have multiple jobs simultaneously building the same output file.
 
 ----
-Viewing results
+Inspecting results
 ----
 
 Once the experiments have finished, you will want to compare their performance.  Generally, the final product of a set of SteamRoller experiments is a plot of some metric (accuracy, run-time, memory usage, etc) with respect to some other variable (number of training examples, hyper-parameter value, etc).  Running ``steamroller serve`` will, by default, start a web server at *http://localhost:8080* with links to the plots generated for each task, or you can examine the figures directly in the *work/* subdirectory.
