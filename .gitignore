@@ -3,3 +3,6 @@
 .sconsign.dblite
 custom.py
 build
+SteamRoller.egg-info
+dist
+*#
