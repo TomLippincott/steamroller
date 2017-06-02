@@ -1,3 +1,4 @@
 test:
   script:
+    - pip install pip --user --upgrade
     - pip install . --user
