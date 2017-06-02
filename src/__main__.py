@@ -5,6 +5,7 @@ if __name__ == "__main__":
     from glob import glob
     import os.path
     import logging
+    import subprocess
     from pkg_resources import resource_string
     
     parser = argparse.ArgumentParser("steamroller")
@@ -25,10 +26,8 @@ if __name__ == "__main__":
             with open("steamroller_config.py", "w") as ofd:
                 ofd.write(steamroller_config)     
     elif options.mode == "run":
-        
-        pass
+        subprocess.call(["/usr/bin/scons", "-Q"])
     elif options.mode == "serve":
-        
         app = flask.Flask("SteamRoller")
         images = glob("work/*png")
         
