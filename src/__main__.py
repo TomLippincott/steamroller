@@ -26,7 +26,7 @@ if __name__ == "__main__":
             with open("steamroller_config.py", "w") as ofd:
                 ofd.write(steamroller_config)     
     elif options.mode == "run":
-        subprocess.call(["/usr/bin/scons", "-Q"])
+        subprocess.call(["scons", "-Q"])
     elif options.mode == "serve":
         app = flask.Flask("SteamRoller")
         images = glob("work/*png")
