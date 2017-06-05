@@ -2,6 +2,8 @@ import pandas
 import numpy
 import gzip
 import csv
+import matplotlib as mpl
+mpl.use('Agg')
 from plotnine import ggplot, aes, geom_boxplot, coord_flip, theme, geom_violin, geom_point, scale_x_continuous, ylab, xlab, stat_smooth, geom_line, ggtitle
 import re
 
