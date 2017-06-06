@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument(dest="mode", choices=["init", "run", "serve"])
     parser.add_argument("-p", "--port", dest="port", default=8080, type=int)
     parser.add_argument("-H", "--host", dest="host", default="localhost")
+    parser.add_argument("-n", "--dry_run", dest="dry_run", default=False, action="store_true")
     options = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -26,7 +27,10 @@ if __name__ == "__main__":
             with open("steamroller_config.py", "w") as ofd:
                 ofd.write(steamroller_config)     
     elif options.mode == "run":
-        subprocess.call(["scons", "-Q"])
+        if options.dry_run:
+            subprocess.call(["scons", "-Qn"])
+        else:
+            subprocess.call(["scons", "-Q"])
     elif options.mode == "serve":
         app = flask.Flask("SteamRoller")
         images = glob("work/*png")
