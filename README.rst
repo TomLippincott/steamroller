@@ -53,10 +53,6 @@ That's it.  We use the *Concrete* data format, so the file is a tar archive wher
 
   ID LABEL TEXT
 
-or::
-
-  LABEL TEXT
-
 you can create an appropriate Concrete tar archive by running ``python -m steamroller.tools.convert -i TEXT_FILE -o TAR_FILE``.  Make sure that any tab characters in the text column are appropriately escaped (SteamRoller uses Python's *csv* module).
   
 ----
