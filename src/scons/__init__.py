@@ -50,7 +50,7 @@ def generate(env):
             ("Evaluate", "python -m steamroller.metrics.fscore -o ${TARGETS[0]} ${SOURCES}"),
             ("CollateResources", "python -m steamroller.tools.resources -o ${TARGETS[0]} ${SOURCES}"),
             ("ModelSizes", "python -m steamroller.tools.model_sizes -o ${TARGETS[0]} ${SOURCES}"),        
-            ("Plot", "python -m steamroller.plots.whisker -o ${TARGETS[0]} -f \"'${FIELD}'\" -t \"'${TITLE}'\" ${SOURCES}"),
+            ("Plot", "python -m steamroller.plots.whisker -o ${TARGETS[0]} -f \"${FIELD}\" -t \"'${TITLE}'\" ${SOURCES}"),
     ]:
         env["BUILDERS"][name] = make_builder(env, command, name)
         

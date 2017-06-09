@@ -36,7 +36,6 @@ if __name__ == "__main__":
     
     # training
     if options.train and options.output and options.input:
-        data = read_data(options.input, options.train)
         instances, labels = [], []        
         for cid, label, text in read_data(options.input, options.train):
             instances.append(dict(sum([extract_character_ngrams(text, options.max_ngram) for n in range(1, options.max_ngram + 1)], [])))
@@ -44,7 +43,7 @@ if __name__ == "__main__":
         dv = DictVectorizer(sparse=True)
         X = dv.fit_transform(instances)
         label_lookup = {}
-        classifier_class, args, hypers = models[options.type] #naive_bayes.MultinomialNB()
+        classifier_class, args, hypers = models[options.type]
         classifier = classifier_class(**args)
         for l in labels:
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
@@ -66,10 +65,10 @@ if __name__ == "__main__":
         data = {}
         order = [inv_label_lookup[i] for i in range(len(inv_label_lookup))]
         if hasattr(classifier, "predict_log_proba"):
-            for probs, (cid, g) in zip([classifier.predict_log_proba(x) for x in X], gold):
+            for probs, (cid, g) in zip(classifier.predict_log_proba(X), gold):
                 data[cid] = (g, {k : v for k, v in zip(order, probs.flatten())})
         else:
-            for pred, (cid, g) in zip([classifier.predict(x) for x in X], gold):
+            for pred, (cid, g) in zip(classifier.predict(X), gold):
                 probs = [0.0 if i == pred[0] else float("-inf") for i in range(len(order))]
                 data[cid] = (g, {k : v for k, v in zip(order, probs)})
         write_probabilities(data, options.output)
