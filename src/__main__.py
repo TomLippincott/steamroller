@@ -28,14 +28,24 @@ if __name__ == "__main__":
     def serve(args, rest):
         app = flask.Flask("SteamRoller")
         images = glob("work/*png")
-        
+        l = {}
+        execfile("steamroller_config.py", l)
+        task_names = [x["name"] for x in l["TASKS"]]
         @app.route("/")
         def browse():
-            return "SteamRoller results browser"
 
-        @app.route("/experiments/<task>")
+            return "<html><body><h1>{}</h1><ul>{}</ul></body></html>".format("SteamRoller results browser",
+                                                                             "\n".join(["<li><a href=\"/tasks/{}\">{}</a></li>".format(t, t) for t in task_names]))
+
+        @app.route("/tasks/<task>")
         def experiment(task):
-            return task
+            images = glob("work/{}*png".format(task))
+            return "<html><body><h3><a href=\"/\">Back</a></h3><h1>{}</h1>{}</body></html>".format(task, "\n".join(["<img src=\"/{}\"/>".format(i) for i in images]))
+
+        @app.route("/work/<image_file>")
+        def image(image_file):
+            with open(os.path.join("work", image_file)) as ifd:
+                return ifd.read()
         
         app.run(port=options.port, host=options.host)
 
