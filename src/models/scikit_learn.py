@@ -38,7 +38,7 @@ if __name__ == "__main__":
     if options.train and options.output and options.input:
         instances, labels = [], []        
         for cid, label, text in read_data(options.input, options.train):
-            instances.append(dict(sum([extract_character_ngrams(text, options.max_ngram) for n in range(1, options.max_ngram + 1)], [])))
+            instances.append(dict(sum([extract_character_ngrams(text, n) for n in range(1, options.max_ngram + 1)], [])))
             labels.append(label)
         dv = DictVectorizer(sparse=True)
         X = dv.fit_transform(instances)
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         classifier = classifier_class(**args)
         for l in labels:
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
-        logging.info("Training with %d instances, %d labels", len(instances), len(label_lookup))
+        logging.info("Training with %d instances, %d features, %d labels", len(instances), len(dv.get_feature_names()), len(label_lookup))
         classifier.fit(X, [label_lookup[l] for l in labels])
         with gzip.open(options.output, "w") as ofd:
             pickle.dump((classifier, dv, label_lookup), ofd)            
@@ -57,7 +57,7 @@ if __name__ == "__main__":
             classifier, dv, label_lookup = pickle.load(ifd)
         instances, gold = [], []
         for cid, label, text in read_data(options.input, options.test):
-            instances.append(dict(sum([extract_character_ngrams(text, options.max_ngram) for n in range(1, options.max_ngram + 1)], [])))
+            instances.append(dict(sum([extract_character_ngrams(text, n) for n in range(1, options.max_ngram + 1)], [])))
             gold.append((cid, label))
         logging.info("Testing with %d instances, %d labels", len(instances), len(label_lookup))
         X = dv.transform(instances)
