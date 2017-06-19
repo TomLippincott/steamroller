@@ -13,9 +13,9 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", dest="input")
-    parser.add_argument("-o", "--output", dest="output")
-    parser.add_argument("-t", "--tag_type", dest="tag_type", default="attribute")
+    parser.add_argument("-i", "--input", dest="input", help="Input file where each line is \"ID<tab>TAG<tab>TEXT\"")
+    parser.add_argument("-o", "--output", dest="output", help="Tar file to write Communications to")
+    parser.add_argument("-t", "--tag_type", dest="tag_type", default=None, help="Type of tag (e.g. \"language\"): defaults to None, in which case the tag column is ignored (but must still be present!)")
     options = parser.parse_args()
 
     ugf = AnalyticUUIDGeneratorFactory()
