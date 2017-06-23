@@ -10,6 +10,7 @@ import functools
 import time
 import imp
 import sys
+import json
 del sys.modules['pickle']
 
 sys.modules['pickle'] = imp.load_module('pickle', *imp.find_module('pickle'))
@@ -18,8 +19,9 @@ import pickle
 import steamroller.scons
 
 
-vars = Variables("steamroller_config.py")
+vars = Variables()
 vars.AddVariables(
+    ("CONFIG_FILE", "Configuration file", "steamroller_config.json"),
     ("OUTPUT_WIDTH", "Upper limit on how long a debugging line will be before it's truncated", 1000),
     ("VERBOSE", "Whether to print the full commands being executed", False),
     ("DEFAULTS", "General variables (potentially overridden by models and tasks)", {}),
@@ -38,13 +40,37 @@ def print_cmd_line(s, target, source, env):
         print s
 
 
-env = Environment(variables=vars, ENV=os.environ, TARFLAGS="-c -z", TARSUFFIX=".tgz",
-                  tools=["default", steamroller.scons.generate],
+initial_env = Environment(variables=vars, ENV=os.environ, TARFLAGS="-c -z", TARSUFFIX=".tgz",
+                          tools=["default", steamroller.scons.generate],
 )
 
+with open(initial_env["CONFIG_FILE"]) as ifd:
+    config = json.load(ifd)
+    for k, v in config.iteritems():
+        initial_env[k] = v
+
+initial_env = Environment(variables=vars, ENV=os.environ, TARFLAGS="-c -z", TARSUFFIX=".tgz",
+                          tools=["default", steamroller.scons.generate],
+)
 
 logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
+vars = Variables()
+vars.AddVariables(
+    ("OUTPUT_WIDTH", "Upper limit on how long a debugging line will be before it's truncated", 1000),
+    ("VERBOSE", "Whether to print the full commands being executed", False),
+    ("DEFAULTS", "General variables (potentially overridden by models and tasks)", config["DEFAULTS"]),
+    ("MODELS", "Classification models to compare", config["MODELS"]),
+    ("TASKS", "Classification tasks", config["TASKS"]),
+    ("TEST_COUNT", "Data size for testing models", 10000),
+    BoolVariable("GRID", "Do we have access to a grid via the qsub command?", config["GRID"]),
+    ("GRID_RESOURCES", "List of resources to request for a job", []),
+    ("GRID_CHECK_INTERVAL", "How many seconds between checking on job status", 30),
+)
+
+env = Environment(variables=vars, ENV=os.environ, TARFLAGS="-c -z", TARSUFFIX=".tgz",
+                  tools=["default", steamroller.scons.generate],
+)
 
 defaults = env["DEFAULTS"]
 

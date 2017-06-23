@@ -23,7 +23,7 @@ As explained below, changes to the code are usually unnecessary, as the most com
 Getting started
 ------
 
-SteamRoller and its dependencies can be installed with ``pip install steamroller --user``.  An empty directory can be initialized for performing experiments by executing ``steamroller init`` from therein.  This creates two files: *SConstruct*, and *steamroller_config.py*: you then need to copy a suitable data file into place, e.g. ``cp lid.tgz sample_data.tgz``.  You can then run ``steamroller run`` to perform the predefined experiments, and ``steamroller serve`` to launch the results web server.  Most of SteamRoller's extensibility is through editing *steamroller_config.py*, while more advanced users may find it useful to edit *SConstruct*.
+SteamRoller and its dependencies can be installed with ``pip install steamroller --user``.  An empty directory can be initialized for performing experiments by executing ``steamroller init`` from therein.  This creates two files: *SConstruct*, and *steamroller_config.json*: you then need to copy a suitable data file into place, e.g. ``cp lid.tgz sample_data.tgz``.  You can then run ``steamroller run`` to perform the predefined experiments, and ``steamroller serve`` to launch the results web server.  Most of SteamRoller's extensibility is through editing *steamroller_config.py*, while more advanced users may find it useful to edit *SConstruct*.
 
 ----
 Using an HPC Grid
@@ -41,9 +41,9 @@ Once the experiments have finished, you will want to compare their performance. 
 Defining a new task
 ----
 
-In SteamRoller, a *task* is simply a pointer to documents annotated with discrete labels.  For example, the default *steamroller_config.py* file has the following entry::
+In SteamRoller, a *task* is simply a pointer to documents annotated with discrete labels.  For example, the default *steamroller_config.json* file has the following entry::
 
-   TASKS = [
+   "TASKS" : [
      {"name" : "SampleData",
       "file" : "sample_data.tgz"
      }
@@ -64,13 +64,13 @@ A *model* in SteamRoller is defined by the command-line processes for:
 1. Training based on some data
 2. Applying to some new data
 
-Looking again at the default *steamroller_config.py*, there is an entry::
+Looking again at the default *steamroller_config.json*, there is an entry::
 
-  MODELS = [
+  "MODELS" : [
       {"name" : "SVM",
       "train_command" : "python -m steamroller.models.scikit_learn --type svm --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-      "apply_command" : "python -m steamroller.models.scikit_learn --type svm --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",     
-      },
+      "apply_command" : "python -m steamroller.models.scikit_learn --type svm --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}"
+      }
     ]
 
 *train_command*, when the template strings are replaced by SteamRoller, will train an SVM based on an input file (i.e. the tar archive mentioned earlier) and a train file that is a list of indices in the tar file.  The resulting SVM is serialized into the output file.  Note the MAX_NGRAM template string: this is a *hyper-parameter* that you might set directly in the *steamroller_config.py* file, or perhaps perform grid search over to find optimal values.
