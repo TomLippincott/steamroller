@@ -40,22 +40,22 @@ MODELS = [
      # ${SOURCES[0]}, ${SOURCES[1]} and ${SOURCES[2]} are the model file,
      # and input file, respectively, and ${TARGETS[0]} is the file to
      # write the prediction probabilities to.
-     "apply_command" : "python -m steamroller.models.scikit_learn --type naive_bayes --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+     "apply_command" : "python -m steamroller.models.scikit_learn --type naive_bayes --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
     },
 
     {"name" : "SVM",
      "train_command" : "python -m steamroller.models.scikit_learn --type svm --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-     "apply_command" : "python -m steamroller.models.scikit_learn --type svm --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",     
+     "apply_command" : "python -m steamroller.models.scikit_learn --type svm --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
     },
     
     {"name" : "LogisticRegression",
      "train_command" : "python -m steamroller.models.scikit_learn --type logistic_regression --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-     "apply_command" : "python -m steamroller.models.scikit_learn --type logistic_regression --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+     "apply_command" : "python -m steamroller.models.scikit_learn --type logistic_regression --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
     },
 
     {"name" : "Prior",
      "train_command" : "python -m steamroller.models.scikit_learn --type prior --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-     "apply_command" : "python -m steamroller.models.scikit_learn --type prior --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+     "apply_command" : "python -m steamroller.models.scikit_learn --type prior --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
     },
 ]
 
