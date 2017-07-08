@@ -1,43 +1,46 @@
 
 {
-    "help" : "These are general values that can be overridden by specific tasks or models.  For example, you might have a task with a smaller data set where `sizes` ranges too high, so you could override it in that task definition.",
+    "HELP" : "These are general values that can be overridden by specific tasks or models.  For example, you might have a task with a smaller data set where `sizes` ranges too high, so you could override it in that task definition.",
     "DEFAULTS" : {
-	"help" : "What training sizes (number of documents) to run experiments with, proportions for train and test, number of random folds per experiment",
-	"sizes" : [1000, 2000, 4000],
-	
-	"train" : 0.9,
-	"test" : 0.1,
-	
-	"folds" : 3
+	"HELP" : "What training sizes (number of documents) to run experiments with, proportions for train and test, number of random folds per experiment",
+	"TRAINING_SIZES" : [5, 10, 20, 40, 80, 160],
+	"TESTING_SIZE" : 100,
+	"FOLD_COUNT" : 5,
+	"MAX_NGRAM" : 3,
+	"GRID" : false
     },
     
     "TASKS" : [
-	{"name" : "SampleData",
-	 "file" : "sample_data.tgz"
+	{"NAME" : "ExampleTask",
+	 "FILE" : "tasks/example.tgz"
 	}
     ],
     
     "MODELS" : [
 	
-	{"name" : "NaiveBayes",
-	 "train_command" : "python -m steamroller.models.scikit_learn --type naive_bayes --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-	 "apply_command" : "python -m steamroller.models.scikit_learn --type naive_bayes --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	{"NAME" : "NaiveBayes",
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --type naive_bayes --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --type naive_bayes --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
 	},
 
-	{"name" : "SVM",
-	 "train_command" : "python -m steamroller.models.scikit_learn --type svm --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-	 "apply_command" : "python -m steamroller.models.scikit_learn --type svm --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
-	},
-    
-	{"name" : "LogisticRegression",
-	 "train_command" : "python -m steamroller.models.scikit_learn --type logistic_regression --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-	 "apply_command" : "python -m steamroller.models.scikit_learn --type logistic_regression --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	{"NAME" : "SVM",
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --type svm --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --type svm --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
 	},
 
-	{"name" : "Prior",
-	 "train_command" : "python -m steamroller.models.scikit_learn --type prior --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-	 "apply_command" : "python -m steamroller.models.scikit_learn --type prior --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	{"NAME" : "RandomForest",
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --type random_forest --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --type random_forest --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	},
+	
+	{"NAME" : "LogisticRegression",
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --type logistic_regression --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --type logistic_regression --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	},
+
+	{"NAME" : "prior",
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --type prior --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --type prior --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
 	}
-    ],
-    "GRID" : false
+    ]
 }

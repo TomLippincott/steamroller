@@ -12,8 +12,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", dest="input")
     parser.add_argument("--total_file", dest="total_file")
-    parser.add_argument("--train_count", dest="train_count", type=int)
-    parser.add_argument("--test_count", dest="test_count", type=int)
+    parser.add_argument("--training_size", dest="training_size", type=int)
+    parser.add_argument("--testing_size", dest="testing_size", type=int)
     parser.add_argument("--train", dest="train")
     parser.add_argument("--test", dest="test")
     options = parser.parse_args()
@@ -25,9 +25,9 @@ if __name__ == "__main__":
     random.shuffle(indices)
     
     with writer(gzip.open(options.train, "w")) as ofd:
-        ofd.write("\n".join([str(i) for i in indices[0:options.train_count]]))
+        ofd.write("\n".join([str(i) for i in indices[0:options.training_size]]))
 
     with writer(gzip.open(options.test, "w")) as ofd:
-        ofd.write("\n".join([str(i) for i in indices[options.train_count:options.train_count+options.test_count]]))
+        ofd.write("\n".join([str(i) for i in indices[options.training_size:options.training_size+options.testing_size]]))
 
 

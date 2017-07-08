@@ -69,7 +69,7 @@ if __name__ == "__main__":
                 data[cid] = (g, {k : v for k, v in zip(order, probs.flatten())})
         else:
             for pred, (cid, g) in zip(classifier.predict(X), gold):
-                probs = [0.0 if i == pred[0] else float("-inf") for i in range(len(order))]
+                probs = [0.0 if i == pred else float("-inf") for i in range(len(order))]
                 data[cid] = (g, {k : v for k, v in zip(order, probs)})
         write_probabilities(data, options.output)
     else:

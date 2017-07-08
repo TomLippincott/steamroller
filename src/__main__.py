@@ -8,13 +8,42 @@ if __name__ == "__main__":
     import subprocess
     import sys
     import os
-    from pkg_resources import resource_string
+    from pkg_resources import resource_string, resource_listdir, resource_isdir
     import json
+    import re
+    import gzip
     
+    def get_files(path):
+        entries = resource_listdir("steamroller", path)
+        files = [os.path.join(path, e) for e in entries if not resource_isdir("steamroller", e) and e.endswith("py") and os.path.basename(e) != "resources.py"]
+        dirs = [e for e in entries if resource_isdir("steamroller", e)]
+        return files + sum([get_files(os.path.join(path, d)) for d in dirs], [])
+
+    def to_texts(filenames, num):
+        text = "\n".join([resource_string("steamroller", f) for f in filenames])        
+        lines = [l for l in text.split("\n") if not re.match(r"^\s*$", l)]
+        per = len(lines) / num
+        return [re.sub(r"\s", " ", "\n".join(lines[i * per:(i + 1) * per])) for i in range(num)]
     
     def init(args, rest):
         sconstruct = resource_string(__name__, "data/SConstruct")
         steamroller_config = resource_string(__name__, "data/steamroller_config.json.template")
+        python_docs = [re.sub(r"\s", " ", str(getattr(__builtins__, a).__doc__)) for a in dir(__builtins__)]
+        python_code = to_texts(get_files("/"), len(python_docs))
+        try:
+            os.mkdir("tasks")
+        except:
+            pass
+        try:
+            os.mkdir("csv")
+        except:
+            pass
+        with gzip.open("csv/example.txt.gz", "w") as ofd:
+            for i, t in enumerate(python_docs):
+                ofd.write("%d\tdoc\t%s\n" % (i, t))
+            for i, t in enumerate(python_code):
+                ofd.write("%d\tcode\t%s\n" % (len(python_docs) + i, t))
+        subprocess.call(["python", "-m", "steamroller.tools.convert", "-i", "csv/example.txt.gz", "-t", "attribute", "-o", "tasks/example.tgz"])
         if (not args.force) and (os.path.exists("SConstruct") or os.path.exists("steamroller_config.py")):
             logging.error("Refusing to overwrite existing SConstruct or steamroller_config.json files (try \"--force\")")
         else:
@@ -32,7 +61,7 @@ if __name__ == "__main__":
         l = {}
         with open(args.config) as ifd:
             config = json.load(ifd)
-        task_names = [x["name"] for x in config["TASKS"]]
+        task_names = [x["NAME"] for x in config["TASKS"]]
         @app.route("/")
         def browse():
 
@@ -63,7 +92,7 @@ if __name__ == "__main__":
     serve_parser = subparsers.add_parser("serve", help="Serve experiment results")
     serve_parser.add_argument("-p", "--port", dest="port", default=8080, type=int)
     serve_parser.add_argument("-H", "--host", dest="host", default="localhost")
-    serve_parser.add_argument("-c", "--config", dest="config", default="steamroller_config.json")
+    serve_parser.add_argument("--config", dest="config", default="steamroller_config.json")
     serve_parser.set_defaults(func=serve)
     options, rest = parser.parse_known_args()
 

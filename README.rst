@@ -23,13 +23,17 @@ As explained below, changes to the code are usually unnecessary, as the most com
 Getting started
 ------
 
-SteamRoller and its dependencies can be installed with ``pip install steamroller --user``.  An empty directory can be initialized for performing experiments by executing ``steamroller init`` from therein.  This creates two files: *SConstruct*, and *steamroller_config.json*: you then need to copy a suitable data file into place, e.g. ``cp lid.tgz sample_data.tgz``.  You can then run ``steamroller run`` to perform the predefined experiments, and ``steamroller serve`` to launch the results web server.  Most of SteamRoller's extensibility is through editing *steamroller_config.py*, while more advanced users may find it useful to edit *SConstruct*.
+SteamRoller and its dependencies can be installed with ``pip install steamroller --user``.  An empty directory can be initialized for performing experiments by executing ``steamroller init`` from therein.  This creates four files: *SConstruct*, and *steamroller_config.json* are the build system description and an example configuration file, respectively.  *csv/example.txt.gz* is a tab-separated file of texts drawn from Python documentation, and SteamRoller source code.  *tasks/example.tgz* is a Concrete archive of the same data, produced using the conversion tool described in this document.
 
-----
-Using an HPC Grid
-----
+The configuration file describes 150 experiments using the example data across several axes: 5 random folds, 5 model types, and 6 sizes of training data.  They can be run locally, in serial, with::
 
-By default, *steamroller_config.py* has ``GRID=False``, and experiments will run serially on the local machine.  If you are running on an HPC grid like Univa, Sun Grid Engine, or Torque, setting ``GRID=True`` instructs SteamRoller to run experiments via the *qsub* command.  Since the jobs are distributed across the grid, the invocation of SteamRoller will submit them and then *wait* until they have completed, polling the scheduler and printing the current number of running jobs.  If you interrupt the SteamRoller command in this state, *the grid jobs will continue to run*, so you can either allow them to do so (e.g. if the interruption was accidental), or manually kill the running jobs with a command like ``qdel -u USERNAME``.  The latter is particularly important if you want to change and rerun experiments, as otherwise you may have multiple jobs simultaneously building the same output file.
+  steamroller run
+
+This takes about 6 minutes to complete on a typical laptop.  This can be sped up by using multiple threads to build targets in parallel, e.g. you can cut the runtime in half on a dual-core machine with::
+
+  steamroller run -j 2
+
+In general, any options accepted by SCons can be included after ``steamroller run``: the only exception is the ``--config`` option, which lets you specify a different SteamRoller configuration file.  To get a list of SCons options, you can run ``steamroller run -h``.  For heavy-duty experiments, you might want to use the HPC functionality described below.
 
 ----
 Inspecting results
@@ -38,18 +42,24 @@ Inspecting results
 Once the experiments have finished, you will want to compare their performance.  Generally, the final product of a set of SteamRoller experiments is a plot of some metric (accuracy, run-time, memory usage, etc) with respect to some other variable (number of training examples, hyper-parameter value, etc).  Running ``steamroller serve`` will, by default, start a web server at *http://localhost:8080* with links to the plots generated for each task, or you can examine the figures directly in the *work/* subdirectory.
 
 ----
+Using an HPC Grid
+----
+
+By default, *steamroller_config.json* has ``"GRID" : false``, and experiments will run serially on the local machine.  If you are running on an HPC grid like Univa, Sun Grid Engine, or Torque, setting ``"GRID" : true`` instructs SteamRoller to run experiments via the *qsub* command.  Since the jobs are distributed across the grid, the invocation of SteamRoller will submit them and then *wait* until they have completed, polling the scheduler and printing the current number of running jobs.  If you interrupt the SteamRoller command in this state, *the grid jobs will continue to run*, so you can either allow them to do so (e.g. if the interruption was accidental), or manually kill the running jobs with a command like ``qdel -u USERNAME``.  The latter is particularly important if you want to change and rerun experiments, as otherwise you may have multiple jobs simultaneously building the same output file.
+
+----
 Defining a new task
 ----
 
 In SteamRoller, a *task* is simply a pointer to documents annotated with discrete labels.  For example, the default *steamroller_config.json* file has the following entry::
 
    "TASKS" : [
-     {"name" : "SampleData",
-      "file" : "sample_data.tgz"
+     {"NAME" : "ExampleTask",
+      "FILE" : "tasks/example.tgz"
      }
    ]
 
-That's it.  We use the *Concrete* data format, so the file is a tar archive where each entry is a *Communication* object, but SteamRoller has functionality to convert simple text formats.  If your data is a text file with lines in tab-separated format::
+That's it.  We use the *Concrete* data format, so the file is a tar archive where each entry is a *Communication* object, but SteamRoller has functionality to convert from a simple text format like that of the auto-generated ``csv/example.txt.gz`` file.  If your data is a text file with lines in tab-separated format::
 
   ID LABEL TEXT
 
@@ -67,9 +77,9 @@ A *model* in SteamRoller is defined by the command-line processes for:
 Looking again at the default *steamroller_config.json*, there is an entry::
 
   "MODELS" : [
-      {"name" : "SVM",
-      "train_command" : "python -m steamroller.models.scikit_learn --type svm --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-      "apply_command" : "python -m steamroller.models.scikit_learn --type svm --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}"
+      {"NAME" : "SVM",
+      "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --type svm --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+      "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --type svm --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}"
       }
     ]
 

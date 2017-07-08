@@ -10,7 +10,7 @@ import shlex
 def qsub(command, name, std, dep_ids=[], grid_resources=[]):
     deps = "" if len(dep_ids) == 0 else "-hold_jid {}".format(",".join([str(x) for x in dep_ids]))
     res = "" if len(grid_resources) == 0 else "-l {}".format(",".join([str(x) for x in grid_resources]))
-    qcommand = "qsub -v PATH -v PYTHONPATH -N {} -b y -cwd -j y -terse -o {} {} {} ".format(name, std, deps, res) + command
+    qcommand = "qsub -shell n -V -N {} -b y -cwd -j y -terse -o {} {} {} ".format(name, std, deps, res) + command
     logging.info(qcommand)
     p = subprocess.Popen(shlex.split(qcommand), stdout=subprocess.PIPE)
     out, err = p.communicate()
@@ -19,7 +19,6 @@ def qsub(command, name, std, dep_ids=[], grid_resources=[]):
 
 def make_emitter(script):
     def emitter(target, source, env):
-        #[env.Depends(t, script) for t in target]
         return (target + [target[0].rstr() + ".resources.txt"], source)
     return emitter
 
@@ -46,7 +45,7 @@ def generate(env):
 
     for name, command in [
             ("GetCount", "python -m steamroller.tools.count --input ${SOURCES[0]} --output ${TARGETS[0]}"),
-            ("CreateSplit", "python -m steamroller.tools.split --total_file ${SOURCES[0]} --train_count ${TRAIN_COUNT} --test_count ${TEST_COUNT} --train ${TARGETS[0]} --test ${TARGETS[1]}"),
+            ("CreateSplit", "python -m steamroller.tools.split --total_file ${SOURCES[0]} --training_size ${TRAINING_SIZE} --testing_size ${TESTING_SIZE} --train ${TARGETS[0]} --test ${TARGETS[1]}"),
             ("Evaluate", "python -m steamroller.metrics.fscore -o ${TARGETS[0]} ${SOURCES}"),
             ("CollateResources", "python -m steamroller.tools.resources -o ${TARGETS[0]} ${SOURCES}"),
             ("ModelSizes", "python -m steamroller.tools.model_sizes -o ${TARGETS[0]} ${SOURCES}"),        
@@ -55,8 +54,9 @@ def generate(env):
         env["BUILDERS"][name] = make_builder(env, command, name)
         
     for model in env["MODELS"]:
-        env["BUILDERS"]["Train{}".format(model["name"])] = make_builder(env, model["train_command"], "Train{}".format(model["name"]))
-        env["BUILDERS"]["Apply{}".format(model["name"])] = make_builder(env, model["apply_command"], "Apply{}".format(model["name"]))
+        if not model.get("DISABLED", False):
+            env["BUILDERS"]["Train{}".format(model["NAME"])] = make_builder(env, model["TRAIN_COMMAND"], "Train{}".format(model["NAME"]))
+            env["BUILDERS"]["Apply{}".format(model["NAME"])] = make_builder(env, model["APPLY_COMMAND"], "Apply{}".format(model["NAME"]))
 
     def wait_for_grid(target, source, env):
         while True:
