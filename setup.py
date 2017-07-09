@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name="SteamRoller",
-      version="1.0.8",
+      version="1.0.11",
       description="An experimental framework for text classification experiments",
       author="Tom Lippincott",
       author_email="tom@cs.jhu.edu",
@@ -19,6 +19,6 @@ setup(name="SteamRoller",
                 "steamroller.scons"],
       package_dir={"steamroller" : "src"},
       scripts=["scripts/steamroller"],
-      install_requires=["concrete", "scikit-learn==0.18.1", "scons", "plotnine", "seaborn", "tensorflow", "valid", "flask"],
+      install_requires=["concrete", "scikit-learn==0.18.1", "scons", "plotnine", "flask"],
       package_data={"" : ["data/SConstruct", "data/steamroller_config.json.template"]},
      )
