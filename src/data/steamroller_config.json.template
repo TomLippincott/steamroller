@@ -10,6 +10,9 @@
 	"GRID" : false,
 	"GRID_RESOURCES" : []
     },
+
+    "FEATURE_SELECTORS" : [
+    ],
     
     "TASKS" : [
 	{"NAME" : "ExampleTask",
@@ -43,5 +46,44 @@
 	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --type prior --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
 	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --type prior --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
 	}
+    ],
+
+    "FIGURES" : [
+	{"NAME" : "fscore",
+	 "XLABEL" : "Training instances",
+	 "X" : "TRAINING_SIZE",
+	 "YLABEL" : "Average F-Score",
+	 "Y" : "FSCORE"
+	},
+
+	{"NAME" : "accuracy",
+	 "XLABEL" : "Training instances",
+	 "X" : "TRAINING_SIZE",
+	 "YLABEL" : "Accuracy",
+	 "Y" : "ACCURACY"
+	},
+
+	{"NAME" : "model_size",
+	 "XLABEL" : "Training instances",
+	 "X" : "TRAINING_SIZE",
+	 "YLABEL" : "Model size (g)",
+	 "Y" : "FSCORE"
+	},	
+
+	{"NAME" : "application_memory",
+	 "XLABEL" : "Training instances",
+	 "X" : "TRAINING_SIZE",
+	 "YLABEL" : "Max memory (g) of application",
+	 "Y" : "APPLICATION_MEMORY"
+	},	
+
+	{"NAME" : "application_time",
+	 "XLABEL" : "Training instances",
+	 "X" : "TRAINING_SIZE",
+	 "YLABEL" : "CPU time (s) of application",
+	 "Y" : "APPLICATION_TIME"
+	}	
+
     ]
+    
 }

@@ -42,6 +42,7 @@ config_vars = [
     ("VERBOSE", "Whether to print the full commands being executed", False),
     ("MODELS", "", config["MODELS"]),
     ("TASKS", "", config["TASKS"]),
+    ("FIGURES", "", config["FIGURES"]),
 ] + [(k, "", v) for k, v in config["DEFAULTS"].iteritems()]
 
 vars = Variables()
@@ -58,6 +59,7 @@ env = Environment(variables=vars, ENV=os.environ, TARFLAGS="-c -z", TARSUFFIX=".
 env['PRINT_CMD_LINE_FUNC'] = print_cmd_line
 env.Decider("timestamp-newer")
 
+metrics = []
 for task in env["TASKS"]:
     classified_items = []
     train_resource_list = []
@@ -97,17 +99,23 @@ for task in env["TASKS"]:
                 apply_resource_list.append(resources)
                 classified_items.append(classified)
 
-    plots = []
+
     if len(classified_items) > 0:
         scores, _ = env.Evaluate("work/${TASK_NAME}_scores.txt.gz", classified_items, TASK_NAME=task_name)
         train_resources, _ = env.CollateResources("work/${TASK_NAME}_trainresources.txt.gz", train_resource_list, TASK_NAME=task_name)
         apply_resources, _ = env.CollateResources("work/${TASK_NAME}_applyresources.txt.gz", apply_resource_list, TASK_NAME=task_name)
         model_sizes, _ = env.ModelSizes("work/%s_modelsizes.txt.gz" % (task_name), model_list)
-        for vals, field, title in [(scores, "F_Score", "Average F-Score"),
-                                   (train_resources, "Memory", "Max memory (G) training"),
-                                   (train_resources, "CPU", "CPU time (s) training"),
-                                   (apply_resources, "Memory", "Max memory (G) application"),
-                                   (apply_resources, "CPU", "CPU time (s) application"),
-                                   (model_sizes, "Gigabytes", "Model size (G)")]:
-            env.Plot("work/${TASK_NAME}_${TITLE}_plot.png", vals, FIELD=field, TITLE=title, TASK_NAME=task_name)
+        metrics += [scores, train_resources, apply_resources, model_sizes]
+
+vals = env.CombineCSVs("work/all_metrics.txt.gz", metrics)
+for task in env["TASKS"]:
+    for figure in env["FIGURES"]:
+        env.Plot("work/${TASK_NAME}_${PLOT_NAME}.png", vals, TASK_NAME=task["NAME"], PLOT_NAME=figure["NAME"], PLOT_CONFIG=figure)
+        # for vals, field, title in [(scores, "F_Score", "Average F-Score"),
+        #                            (train_resources, "Memory", "Max memory (G) training"),
+        #                            (train_resources, "CPU", "CPU time (s) training"),
+        #                            (apply_resources, "Memory", "Max memory (G) application"),
+        #                            (apply_resources, "CPU", "CPU time (s) application"),
+        #                            (model_sizes, "Gigabytes", "Model size (G)")]:
+        #     env.Plot("work/${TASK_NAME}_${TITLE}_plot.png", vals, FIELD=field, TITLE=title, TASK_NAME=task_name)
 

@@ -36,6 +36,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--output", dest="output")
+    parser.add_argument("-s", "--stage", dest="stage")
     parser.add_argument(nargs="+", dest="inputs")
     options = parser.parse_args()
     
@@ -50,8 +51,8 @@ if __name__ == "__main__":
             vals[key] = (res["maxresidentset"], res["usertime"])
 
     with gzip.open(options.output, "w") as ofd:
-        c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "Memory", "CPU"], delimiter="\t")
+        c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "%s Memory" % (options.stage), "%s CPU" % (options.stage)], delimiter="\t")
         c.writeheader()
         for (task, size, model, fold), (mem, cpu) in sorted(vals.iteritems()):
-            c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "Memory" : mem / 1000000.0, "CPU" : cpu})
+            c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "%s Memory" % (options.stage) : mem / 1000000.0, "%s CPU" % (options.stage) : cpu})
 

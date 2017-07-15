@@ -3,68 +3,76 @@ if __name__ == "__main__":
     import flask
     import argparse
     from glob import glob
+    import os
     import os.path
     import logging
     import subprocess
-    import sys
-    import os
     from pkg_resources import resource_string, resource_listdir, resource_isdir
     import json
     import re
     import gzip
-    
+
     def get_files(path):
         entries = resource_listdir("steamroller", path)
-        files = [os.path.join(path, e) for e in entries if not resource_isdir("steamroller", e) and e.endswith("py") and os.path.basename(e) != "resources.py"]
+        files = [os.path.join(path, e) for e in entries if
+                 not resource_isdir("steamroller", e)
+                 and e.endswith("py")
+                 and os.path.basename(e) != "resources.py"]
         dirs = [e for e in entries if resource_isdir("steamroller", e)]
         return files + sum([get_files(os.path.join(path, d)) for d in dirs], [])
 
     def to_texts(filenames, num):
-        text = "\n".join([resource_string("steamroller", f) for f in filenames])        
+        text = "\n".join([resource_string("steamroller", f) for f in filenames])
         lines = [l for l in text.split("\n") if not re.match(r"^\s*$", l)]
         per = len(lines) / num
         return [re.sub(r"\s", " ", "\n".join(lines[i * per:(i + 1) * per])) for i in range(num)]
-    
-    def init(args, rest):
+
+    def init(args, _):
         sconstruct = resource_string(__name__, "data/SConstruct")
         steamroller_config = resource_string(__name__, "data/steamroller_config.json.template")
-        python_docs = [re.sub(r"\s", " ", str(getattr(__builtins__, a).__doc__)) for a in dir(__builtins__)]
+        python_docs = [re.sub(r"\s", " ", str(getattr(__builtins__, a).__doc__))
+                       for a in dir(__builtins__)]
         python_code = to_texts(get_files("/"), len(python_docs))
         try:
             os.mkdir("tasks")
-        except:
-            pass
+        except OSError:
+            logging.info("tasks/ directory already exists")
         try:
             os.mkdir("csv")
-        except:
-            pass
+        except OSError:
+            logging.info("csv/ directory already exists")
         with gzip.open("csv/example.txt.gz", "w") as ofd:
             for i, t in enumerate(python_docs):
                 ofd.write("%d\tdoc\t%s\n" % (i, t))
             for i, t in enumerate(python_code):
                 ofd.write("%d\tcode\t%s\n" % (len(python_docs) + i, t))
-        subprocess.call(["python", "-m", "steamroller.tools.convert", "-i", "csv/example.txt.gz", "-t", "attribute", "-o", "tasks/example.tgz"])
+        subprocess.call(["python",
+                         "-m",
+                         "steamroller.tools.convert",
+                         "-i",
+                         "csv/example.txt.gz",
+                         "-t",
+                         "attribute",
+                         "-o",
+                         "tasks/example.tgz"])
         if (not args.force) and (os.path.exists("SConstruct") or os.path.exists("steamroller_config.py")):
             logging.error("Refusing to overwrite existing SConstruct or steamroller_config.json files (try \"--force\")")
         else:
             with open("SConstruct", "w") as ofd:
                 ofd.write(sconstruct)
             with open("steamroller_config.json", "w") as ofd:
-                ofd.write(steamroller_config)     
+                ofd.write(steamroller_config)
 
-    def run(args, rest):
-        subprocess.call(["scons"] + rest + ["CONFIG_FILE=%s" % args.config])
-        
-    def serve(args, rest):
+    def run(args, scons_args):
+        subprocess.call(["scons"] + scons_args + ["CONFIG_FILE=%s" % args.config])
+
+    def serve(args, _):
         app = flask.Flask("SteamRoller")
-        images = glob("work/*png")
-        l = {}
         with open(args.config) as ifd:
             config = json.load(ifd)
         task_names = [x["NAME"] for x in config["TASKS"]]
         @app.route("/")
         def browse():
-
             return "<html><body><h1>{}</h1><ul>{}</ul></body></html>".format("SteamRoller results browser",
                                                                              "\n".join(["<li><a href=\"/tasks/{}\">{}</a></li>".format(t, t) for t in task_names]))
 
@@ -77,10 +85,10 @@ if __name__ == "__main__":
         def image(image_file):
             with open(os.path.join("work", image_file)) as ifd:
                 return ifd.read()
-        
+
         app.run(port=options.port, host=options.host)
 
-        
+
     parser = argparse.ArgumentParser("steamroller")
     subparsers = parser.add_subparsers(help="sub-commands")
     init_parser = subparsers.add_parser("init", help="Initialize an experiment directory")

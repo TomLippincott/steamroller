@@ -46,8 +46,10 @@ def generate(env):
     for name, command in [
             ("GetCount", "python -m steamroller.tools.count --input ${SOURCES[0]} --output ${TARGETS[0]}"),
             ("CreateSplit", "python -m steamroller.tools.split --total_file ${SOURCES[0]} --training_size ${TRAINING_SIZE} --testing_size ${TESTING_SIZE} --train ${TARGETS[0]} --test ${TARGETS[1]}"),
-            ("Evaluate", "python -m steamroller.metrics.fscore -o ${TARGETS[0]} ${SOURCES}"),
-            ("CollateResources", "python -m steamroller.tools.resources -o ${TARGETS[0]} ${SOURCES}"),
+            ("Accuracy", "python -m steamroller.metrics.accuracy -o ${TARGETS[0]} ${SOURCES}"),
+            ("FScore", "python -m steamroller.metrics.fscore -o ${TARGETS[0]} ${SOURCES}"),            
+            ("CollateResources", "python -m steamroller.tools.resources -o ${TARGETS[0]} -s ${STAGE} ${SOURCES}"),
+            ("CombineCSVs", "python -m steamroller.tools.combine_csvs -o ${TARGETS[0]} ${SOURCES}"),
             ("ModelSizes", "python -m steamroller.tools.model_sizes -o ${TARGETS[0]} ${SOURCES}"),        
             ("Plot", "python -m steamroller.plots.whisker -o ${TARGETS[0]} -f \"${FIELD}\" -t \"'${TITLE}'\" ${SOURCES}"),
     ]:
