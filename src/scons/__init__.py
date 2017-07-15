@@ -51,7 +51,7 @@ def generate(env):
             ("CollateResources", "python -m steamroller.tools.resources -o ${TARGETS[0]} -s ${STAGE} ${SOURCES}"),
             ("CombineCSVs", "python -m steamroller.tools.combine_csvs -o ${TARGETS[0]} ${SOURCES}"),
             ("ModelSizes", "python -m steamroller.tools.model_sizes -o ${TARGETS[0]} ${SOURCES}"),        
-            ("Plot", "python -m steamroller.plots.whisker -o ${TARGETS[0]} -f \"${FIELD}\" -t \"'${TITLE}'\" ${SOURCES}"),
+            ("Plot", "python -m steamroller.plots.${TYPE} --output ${TARGETS[0]} --x ${X} --y ${Y} --xlabel \"${XLABEL}\" --ylabel \"${YLABEL}\" --title \"'${TITLE}'\" --input ${SOURCES[0]} --color \"${COLOR}\" --color_label \"'${COLOR_LABEL}'\""),
     ]:
         env["BUILDERS"][name] = make_builder(env, command, name)
         

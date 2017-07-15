@@ -50,38 +50,58 @@
 
     "FIGURES" : [
 	{"NAME" : "fscore",
+	 "TITLE" : "Average F-Score",
+	 "TYPE" : "whisker",
 	 "XLABEL" : "Training instances",
-	 "X" : "TRAINING_SIZE",
+	 "X" : "size",
 	 "YLABEL" : "Average F-Score",
-	 "Y" : "FSCORE"
+	 "Y" : "F_Score",
+	 "COLOR_LABEL" : "Model type",	 
+	 "COLOR" : "model"
 	},
 
 	{"NAME" : "accuracy",
+	 "TITLE" : "Accuracy",
+	 "TYPE" : "whisker",
 	 "XLABEL" : "Training instances",
-	 "X" : "TRAINING_SIZE",
+	 "X" : "size",
 	 "YLABEL" : "Accuracy",
-	 "Y" : "ACCURACY"
+	 "Y" : "Accuracy",
+	 "COLOR_LABEL" : "Model type",	 
+	 "COLOR" : "model"
 	},
 
 	{"NAME" : "model_size",
+	 "TITLE" : "Model size",
+	 "TYPE" : "whisker",
 	 "XLABEL" : "Training instances",
-	 "X" : "TRAINING_SIZE",
+	 "X" : "size",
 	 "YLABEL" : "Model size (g)",
-	 "Y" : "FSCORE"
+	 "Y" : "F_Score",
+	 "COLOR_LABEL" : "Model type",	 
+	 "COLOR" : "model"
 	},	
 
 	{"NAME" : "application_memory",
+	 "TITLE" : "Memory use",
+	 "TYPE" : "whisker",
 	 "XLABEL" : "Training instances",
-	 "X" : "TRAINING_SIZE",
+	 "X" : "size",
 	 "YLABEL" : "Max memory (g) of application",
-	 "Y" : "APPLICATION_MEMORY"
+	 "Y" : "apply_Memory",
+	 "COLOR_LABEL" : "Model type",	 
+	 "COLOR" : "model"
 	},	
 
 	{"NAME" : "application_time",
+	 "TITLE" : "Run time",
+	 "TYPE" : "whisker",
 	 "XLABEL" : "Training instances",
-	 "X" : "TRAINING_SIZE",
+	 "X" : "size",
 	 "YLABEL" : "CPU time (s) of application",
-	 "Y" : "APPLICATION_TIME"
+	 "Y" : "apply_CPU",
+	 "COLOR_LABEL" : "Model type",
+	 "COLOR" : "model"	 
 	}	
 
     ]

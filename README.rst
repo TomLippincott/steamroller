@@ -91,7 +91,28 @@ Looking again at the default *steamroller_config.json*, there is an entry::
   321321 LABEL2 -.03   -.0025
 
 SteamRoller comes with several common models predefined based on the Scikit-Learn suite, which is why these commands are invoking parts of SteamRoller itself, but the only requirement is that the commands meet the criteria described above and can run on the relevant machines (locally or across a grid).
-  
+
+----
+Defining a new plot
+----
+
+Plots, which used to be hard-coded, are now specified in the configuration file (currently, this is experimental).  Basically, you can specify the X and Y axes, and coloring, to be any of the *metric* values computed over the experiments, or any of *size*, *model*, *fold*, *task*.  For example, the default configuration has::
+
+  "FIGURES" : [
+	{"NAME" : "fscore",
+	 "TITLE" : "Average F-Score",
+	 "TYPE" : "whisker",
+	 "XLABEL" : "Training instances",
+	 "X" : "size",
+	 "YLABEL" : "Average F-Score",
+	 "Y" : "F_Score",
+	 "COLOR_LABEL" : "Model type",	 
+	 "COLOR" : "model",
+	},
+	...
+
+This is asking for a *whisker* plot (currently the only type implemented), where the X-axis is the training *size*, Y-axis is the f-score, and the points are colored by the model type.  Other values (namely, *fold*) are aggregated over and used to compute the variance.  Each plot is performed per-task.
+	
 ----
 FAQ
 ----

@@ -4,7 +4,9 @@ import gzip
 import csv
 import matplotlib as mpl
 mpl.use('Agg')
-from plotnine import ggplot, aes, geom_boxplot, coord_flip, theme, geom_violin, geom_point, scale_x_continuous, ylab, xlab, stat_smooth, geom_line, ggtitle
+from plotnine import ggplot, aes, geom_boxplot, coord_flip, theme, geom_violin, geom_point, scale_x_continuous, ylab, xlab, stat_smooth, geom_line, ggtitle, guide_legend, theme_minimal, theme_void, theme_update, element_text, labs
+from plotnine.themes.themeable import legend_title
+from plotnine.guides import guide_legend, guides
 import re
 
 def maybe_float(s):
@@ -20,8 +22,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--title", dest="title", default="Box Plot")
     parser.add_argument("-o", "--output", dest="output")
-    parser.add_argument("-f", "--field", dest="field")
-    parser.add_argument(nargs="+", dest="inputs")
+    parser.add_argument("-i", "--input", dest="input")
+    parser.add_argument("--x", dest="x")
+    parser.add_argument("--y", dest="y")
+    parser.add_argument("--color", dest="color")
+    parser.add_argument("--xlabel", dest="xlabel")
+    parser.add_argument("--ylabel", dest="ylabel")
+    parser.add_argument("--color_label", dest="color_label")
     options = parser.parse_args()
 
     items = {}
@@ -29,12 +36,11 @@ if __name__ == "__main__":
     all_models = set()
     all_tasks = set()
     data = {}
-    for s in options.inputs:
-        with gzip.open(s) as ifd:
-            for row in csv.DictReader(ifd, delimiter="\t"):
-                for k, v in row.iteritems():
-                    data[k] = data.get(k, [])
-                    data[k].append(v)
+    with gzip.open(options.input) as ifd:
+        for row in csv.DictReader(ifd, delimiter="\t"):
+            for k, v in row.iteritems():
+                data[k] = data.get(k, [])
+                data[k].append(v)
     
     for k in data.keys():
         floats = [maybe_float(x) for x in data[k]]
@@ -44,12 +50,11 @@ if __name__ == "__main__":
             data[k] = floats
 
     df = pandas.DataFrame(data)
-
-    x = (ggplot(df, aes("factor(size)", options.field, color="factor(model)"))) + \
-        ggtitle(options.title) + \
-        scale_x_continuous(trans="log2") + \
-        ylab(options.field) + \
-        xlab("Training data points") + \
+    x = (ggplot(df, aes("factor(%s)" % (options.x), options.y, color="factor(%s)" % (options.color)))) + \
+        theme(legend_title=element_text("")) + \
+        ggtitle(options.title.strip("'")) + \
+        ylab(options.ylabel.strip("'")) + \
+        xlab(options.xlabel.strip("'")) + \
+        labs(color=options.color_label.strip("'")) + \
         geom_boxplot()
-
     x.save(options.output)
