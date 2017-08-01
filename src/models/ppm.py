@@ -31,7 +31,7 @@ if __name__ == "__main__":
         counts = {}
         for cid, label, text in read_data(options.input, options.train):
             counts[label] = counts.get(label, 0) + 1
-            compressors[label] = compressors.get(label, Compressor(label, options.max_ngram))
+            compressors[label] = compressors.get(label, Compressor(options.max_ngram))
             compressors[label].add(text)
 
         model = Classifier()
