@@ -34,7 +34,7 @@ if __name__ == "__main__":
             compressors[label] = compressors.get(label, Compressor(options.max_ngram))
             compressors[label].add(text)
 
-        model = Classifier()
+        model = Classifier(options.max_ngram)
         for l, c in compressors.iteritems():
             model.add(c, l)
 
