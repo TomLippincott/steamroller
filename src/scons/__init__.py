@@ -7,6 +7,7 @@ import logging
 import time
 import shlex
 
+
 def qsub(command, name, std, dep_ids=[], grid_resources=[]):
     deps = "" if len(dep_ids) == 0 else "-hold_jid {}".format(",".join([str(x) for x in dep_ids]))
     res = "" if len(grid_resources) == 0 else "-l {}".format(",".join([str(x) for x in grid_resources]))

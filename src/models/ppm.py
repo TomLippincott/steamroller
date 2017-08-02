@@ -17,6 +17,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", dest="input")
     parser.add_argument("--train", dest="train")
+    parser.add_argument("--tag-type", dest="tag_type", default="attribute")
     parser.add_argument("--dev", dest="dev")
     parser.add_argument("--test", dest="test")
     parser.add_argument("--model", dest="model")
@@ -29,7 +30,7 @@ if __name__ == "__main__":
     if options.train and options.output and options.input:
         compressors = {}
         counts = {}
-        for cid, label, text in read_data(options.input, options.train):
+        for cid, label, text in read_data(options.input, options.train, tag_type=options.tag_type):
             counts[label] = counts.get(label, 0) + 1
             compressors[label] = compressors.get(label, Compressor(label, options.max_ngram))
             compressors[label].add(text)
@@ -44,7 +45,7 @@ if __name__ == "__main__":
     # testing
     elif options.test and options.model and options.output and options.input:
         instances, gold = [], []
-        for cid, label, text in read_data(options.input, options.test):
+        for cid, label, text in read_data(options.input, options.test, tag_type=options.tag_type):
             instances.append(text)
             gold.append((cid, label))
         

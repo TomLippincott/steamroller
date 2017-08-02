@@ -71,7 +71,7 @@ for task in env["TASKS"]:
     
     for training_size in task.get("TRAINING_SIZES", env["TRAINING_SIZES"]):
         for fold in range(1, task.get("FOLD_COUNT", env["FOLD_COUNT"]) + 1):
-
+            
             train, test, _ = env.CreateSplit(["work/${TASK_NAME}_train_${FOLD}_${TRAINING_SIZE}_${TESTING_SIZE}.txt.gz",
                                               "work/${TASK_NAME}_test_${FOLD}_${TRAINING_SIZE}_${TESTING_SIZE}.txt.gz"],
                                              count_file, FOLD=fold, TRAINING_SIZE=training_size, TASK_NAME=task_name)
@@ -85,16 +85,18 @@ for task in env["TASKS"]:
                                                       [train, input_file],
                                                       FOLD=fold, TRAINING_SIZE=training_size, TASK_NAME=task_name, MODEL_NAME=model_name,
                                                       GRID_RESOURCES=model.get("GRID_RESOURCES", env.get("GRID_RESOURCES", [])),
+                                                      TAG_TYPE=task.get("TAG_TYPE", "attribute")
                                                   )
 
 
                 train_resource_list.append(resources)
                 model_list.append(model_file)
                 classified, resources = apply_builder(env,
-                                              "work/${TASK_NAME}_${MODEL_NAME}_${TRAINING_SIZE}_${FOLD}_probabilities.txt.gz",
-                                              [model_file, test, input_file],
-                                              FOLD=fold, TRAINING_SIZE=training_size, TASK_NAME=task_name, MODEL_NAME=model_name,
-                                              GRID_RESOURCES=model.get("grid_resources", []),
+                                                      "work/${TASK_NAME}_${MODEL_NAME}_${TRAINING_SIZE}_${FOLD}_probabilities.txt.gz",
+                                                      [model_file, test, input_file],
+                                                      FOLD=fold, TRAINING_SIZE=training_size, TASK_NAME=task_name, MODEL_NAME=model_name,
+                                                      GRID_RESOURCES=model.get("grid_resources", []),
+                                                      TAG_TYPE=task.get("TAG_TYPE", "attribute")                                                      
                 )
                 apply_resource_list.append(resources)
                 classified_items.append(classified)

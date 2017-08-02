@@ -26,7 +26,8 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", dest="input")
-    parser.add_argument("--type", dest="type", choices=models.keys())
+    parser.add_argument("--model-type", dest="model_type", choices=models.keys())
+    parser.add_argument("--tag-type", dest="tag_type", default="attribute")
     parser.add_argument("--train", dest="train")
     parser.add_argument("--test", dest="test")
     parser.add_argument("--model", dest="model")
@@ -37,13 +38,13 @@ if __name__ == "__main__":
     # training
     if options.train and options.output and options.input:
         instances, labels = [], []        
-        for cid, label, text in read_data(options.input, options.train):
+        for cid, label, text in read_data(options.input, options.train, tag_type=options.tag_type):
             instances.append(dict(sum([extract_character_ngrams(text, n) for n in range(1, options.max_ngram + 1)], [])))
             labels.append(label)
         dv = DictVectorizer(sparse=True)
         X = dv.fit_transform(instances)
         label_lookup = {}
-        classifier_class, args, hypers = models[options.type]
+        classifier_class, args, hypers = models[options.model_type]
         classifier = classifier_class(**args)
         for l in labels:
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
@@ -56,7 +57,7 @@ if __name__ == "__main__":
         with gzip.open(options.model) as ifd:
             classifier, dv, label_lookup = pickle.load(ifd)
         instances, gold = [], []
-        for cid, label, text in read_data(options.input, options.test):
+        for cid, label, text in read_data(options.input, options.test, tag_type=options.tag_type):
             instances.append(dict(sum([extract_character_ngrams(text, n) for n in range(1, options.max_ngram + 1)], [])))
             gold.append((cid, label))
         logging.info("Testing with %d instances, %d labels", len(instances), len(label_lookup))

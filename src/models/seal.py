@@ -7,7 +7,7 @@
 #
 
 
-def instances_and_lookups(input_file, index_file, sym_lookup={"unk" : 0}, label_lookup={"unk" : 0}):
+def instances_and_lookups(input_file, index_file, sym_lookup={"unk" : 0}, label_lookup={"unk" : 0}, tag_type="attribute"):
     """
     Read communications and create integer encodings for them, along with lookups to recover the
     strings.  "unk" is mapped to 0 for both symbols and labels, to handle OOV at test time.  If
@@ -24,7 +24,7 @@ def instances_and_lookups(input_file, index_file, sym_lookup={"unk" : 0}, label_
     instances, labels = [], []
     unk_sym_occs, unk_sym_types = 0, set()
     unk_label_occs, unk_label_types = 0, set()
-    for cid, label, text in read_data(options.input, options.train if options.train else options.test):
+    for cid, label, text in read_data(options.input, index_file, tag_type=tag_type):
         if update_label:
             label_lookup[label] = label_lookup.get(label, len(label_lookup))
         cid_lookup[cid] = label_lookup.get(cid, len(cid_lookup))
@@ -262,6 +262,7 @@ if __name__ == "__main__":
     parser.add_argument("--test", dest="test")
     parser.add_argument("--model", dest="model")
     parser.add_argument("--output", dest="output")
+    parser.add_argument("--tag-type", dest="tag_type", default="attribute")
     
     parser.add_argument("--dev", dest="dev", type=float, default=.1)
     parser.add_argument("--char_embed_vector_length", dest="char_embed_vector_length", default=512, type=int)
@@ -283,7 +284,9 @@ if __name__ == "__main__":
         # train model
         if options.train and options.output and options.input:
             instances, cid_lookup, sym_lookup, label_lookup = instances_and_lookups(options.input,
-                                                                                    options.train)
+                                                                                    options.train,
+                                                                                    tag_type=options.tag_type
+            )
             random.shuffle(instances)
             train = instances[0 : int(len(instances) * (1.0 - options.dev))]
             dev = instances[int(len(instances) * (1.0 - options.dev)):]
@@ -340,7 +343,9 @@ if __name__ == "__main__":
             instances, cid_lookup, sym_lookup, label_lookup = instances_and_lookups(options.input,
                                                                                     options.train,
                                                                                     sym_lookup=train_sym_lookup,
-                                                                                    label_lookup=train_label_lookup)
+                                                                                    label_lookup=train_label_lookup.
+                                                                                    tag_type=options.tag_type
+            )
             
             random.shuffle(instances)
             id_to_label = {v : k for k, v in label_lookup.iteritems()}

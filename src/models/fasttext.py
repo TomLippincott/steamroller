@@ -26,6 +26,7 @@ if __name__ == "__main__":
     parser.add_argument("--test", dest="test")
     parser.add_argument("--model", dest="model")
     parser.add_argument("--output", dest="output")
+    parser.add_argument("--tag-type", dest="tag_type", default="attribute")
     
     parser.add_argument("--min_char_ngram", dest="min_char_ngram", type=int, default=0)
     parser.add_argument("--max_char_ngram", dest="max_char_ngram", type=int, default=4)
@@ -55,7 +56,7 @@ if __name__ == "__main__":
 
     # training
     if options.train and options.output and options.input:
-        data = read_data(options.input, options.train)
+        data = read_data(options.input, options.train, tag_type=options.tag_type)
         instances = [x[2] for x in data]
         _, model_fname = tempfile.mkstemp(suffix=".bin")
         base_fname = os.path.splitext(model_fname)[0]
@@ -83,7 +84,7 @@ if __name__ == "__main__":
         labels = set()
         _, test_fname = tempfile.mkstemp()
         with writer(open(test_fname, "w")) as ofd:
-            for cid, label, text in read_data(options.input, options.test):
+            for cid, label, text in read_data(options.input, options.test, tag_type=options.tag_type):
                 instances.append(text)
                 gold.append((cid, label))
                 ofd.write(text + "\n")

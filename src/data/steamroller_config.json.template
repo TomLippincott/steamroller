@@ -16,36 +16,58 @@
     
     "TASKS" : [
 	{"NAME" : "ExampleTask",
-	 "FILE" : "tasks/example.tgz"
+	 "FILE" : "tasks/example.tgz",
+	 "TAG_TYPE" : "attribute"
 	}
     ],
     
     "MODELS" : [
 	
 	{"NAME" : "NaiveBayes",
-	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --type naive_bayes --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --type naive_bayes --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type naive_bayes --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type naive_bayes --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
 	},
 
 	{"NAME" : "SVM",
-	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --type svm --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --type svm --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type svm --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type svm --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
 	},
 
 	{"NAME" : "RandomForest",
-	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --type random_forest --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --type random_forest --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type random_forest --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type random_forest --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
 	},
 	
 	{"NAME" : "LogisticRegression",
-	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --type logistic_regression --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --type logistic_regression --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type logistic_regression --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type logistic_regression --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
 	},
 
 	{"NAME" : "prior",
-	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --type prior --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
-	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --type prior --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	 "DISABLED" : true,
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type prior --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type prior --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	},
+
+	{"NAME" : "SEAL",
+	 "DISABLED" : true,
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type prior --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type prior --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	},
+	
+	{"NAME" : "VaLID",
+	 "DISABLED" : true,
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type prior --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type prior --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
+	},
+
+	{"NAME" : "FastText",
+	 "DISABLED" : true,
+	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type prior --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --type prior --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
 	}
+
+	
     ],
 
     "FIGURES" : [
