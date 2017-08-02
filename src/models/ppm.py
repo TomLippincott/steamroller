@@ -28,17 +28,12 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     
     if options.train and options.output and options.input:
-        compressors = {}
         counts = {}
+        model = Classifier(options.max_ngram)
         for cid, label, text in read_data(options.input, options.train, tag_type=options.tag_type):
             counts[label] = counts.get(label, 0) + 1
-            compressors[label] = compressors.get(label, Compressor(label, options.max_ngram))
-            compressors[label].add(text)
-
-        model = Classifier()
-        for l, c in compressors.iteritems():
-            model.add(c, l)
-
+            model.train(label, text)
+        
         with gzip.open(options.output, "w") as ofd:
             pickle.dump((model, counts), ofd)
 
