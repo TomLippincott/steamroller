@@ -341,9 +341,9 @@ if __name__ == "__main__":
         elif options.test and options.model and options.output and options.input:
             train_sym_lookup, train_label_lookup = deserialize_model(options.model, temppath)
             instances, cid_lookup, sym_lookup, label_lookup = instances_and_lookups(options.input,
-                                                                                    options.train,
+                                                                                    options.test,
                                                                                     sym_lookup=train_sym_lookup,
-                                                                                    label_lookup=train_label_lookup.
+                                                                                    label_lookup=train_label_lookup,
                                                                                     tag_type=options.tag_type
             )
             

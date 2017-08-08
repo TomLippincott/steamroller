@@ -77,6 +77,8 @@ for task in env["TASKS"]:
                                              count_file, FOLD=fold, TRAINING_SIZE=training_size, TASK_NAME=task_name)
 
             for model in env["MODELS"]:
+                if model.get("DISABLED", False):
+                    continue
                 model_name = model["NAME"]
                 train_builder = env["BUILDERS"]["Train%s" % model_name]
                 apply_builder = env["BUILDERS"]["Apply%s" % model_name]
