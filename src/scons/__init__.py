@@ -47,6 +47,7 @@ def generate(env):
     for name, command in [
             ("GetCount", "python -m steamroller.tools.count --input ${SOURCES[0]} --output ${TARGETS[0]}"),
             ("CreateSplit", "python -m steamroller.tools.split --total_file ${SOURCES[0]} --training_size ${TRAINING_SIZE} --testing_size ${TESTING_SIZE} --train ${TARGETS[0]} --test ${TARGETS[1]}"),
+            ("NoSplit", "python -m steamroller.tools.nosplit -i ${SOURCES[0]} -o ${TARGETS[0]}"),
             ("Accuracy", "python -m steamroller.metrics.accuracy -o ${TARGETS[0]} ${SOURCES}"),
             ("FScore", "python -m steamroller.metrics.fscore -o ${TARGETS[0]} ${SOURCES}"),            
             ("CollateResources", "python -m steamroller.tools.resources -o ${TARGETS[0]} -s ${STAGE} ${SOURCES}"),

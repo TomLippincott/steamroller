@@ -50,6 +50,7 @@ if __name__ == "__main__":
             data[k] = floats
 
     df = pandas.DataFrame(data)
+    print df
     x = (ggplot(df, aes("factor(%s)" % (options.x), options.y, color="factor(%s)" % (options.color)))) + \
         theme(legend_title=element_text("")) + \
         ggtitle(options.title.strip("'")) + \

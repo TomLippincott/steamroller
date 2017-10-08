@@ -52,7 +52,7 @@
 	{"NAME" : "SEAL",
 	 "DISABLED" : true,
 	 "TRAIN_COMMAND" : "python -m steamroller.models.seal --tag ${TAG_TYPE} --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]}",
-	 "APPLY_COMMAND" : "python -m steamroller.models.seal --tag ${TAG_TYPE} --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}",
+	 "APPLY_COMMAND" : "python -m steamroller.models.seal --tag ${TAG_TYPE} --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}"
 	},
 	
 	{"NAME" : "VaLID",

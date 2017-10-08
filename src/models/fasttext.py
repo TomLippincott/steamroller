@@ -28,17 +28,17 @@ if __name__ == "__main__":
     parser.add_argument("--output", dest="output")
     parser.add_argument("--tag-type", dest="tag_type", default="attribute")
     
-    parser.add_argument("--min_char_ngram", dest="min_char_ngram", type=int, default=0)
-    parser.add_argument("--max_char_ngram", dest="max_char_ngram", type=int, default=4)
+    parser.add_argument("--min_char_ngram", dest="min_char_ngram", type=int, default=1)
+    parser.add_argument("--max_char_ngram", dest="max_char_ngram", type=int, default=3)
     
     parser.add_argument("--word_vector_size", dest="word_vector_size", type=int, default=100)
     parser.add_argument("--word_context_size", dest="word_context_size", type=int, default=5)
     parser.add_argument("--epochs", dest="epochs", type=int, default=100)
     parser.add_argument("--negatives_sampled", dest="negatives_sampled", type=int, default=5)
-    parser.add_argument("--min_word_count", dest="min_word_count", type=int, default=0)
-    parser.add_argument("--min_label_count", dest="min_label_count", type=int, default=0)
-    parser.add_argument("--max_word_ngram", dest="max_word_ngram", type=int, default=1)
-    parser.add_argument("--bucket_count", dest="bucket_count", type=int, default=2000000)
+    parser.add_argument("--min_word_count", dest="min_word_count", type=int, default=5)
+    parser.add_argument("--min_label_count", dest="min_label_count", type=int, default=1)
+    parser.add_argument("--max_word_ngram", dest="max_word_ngram", type=int, default=2)
+    parser.add_argument("--bucket_count", dest="bucket_count", type=int, default=10000)
     parser.add_argument("--threads", dest="threads", type=int, default=1)
     parser.add_argument("--verbosity", dest="verbosity", type=int, default=1)
     
@@ -51,7 +51,11 @@ if __name__ == "__main__":
     options = parser.parse_args()
 
     args = {k : v for k, v in options._get_kwargs()}
-    train_command = "fasttext supervised -input %(input_file)s -output %(output_file)s -lr %(learning_rate)f -lrUpdateRate %(learning_rate_update_rate)d -dim %(word_vector_size)d -ws %(word_context_size)d -epoch %(epochs)d -minCount %(min_word_count)d -minCountLabel %(min_label_count)d -neg %(negatives_sampled)d -wordNgrams %(max_word_ngram)d -loss %(loss_function)s -bucket %(bucket_count)d -minn %(min_char_ngram)d -maxn %(max_char_ngram)d -thread %(threads)d -t %(sampling_threshold)f -label %(label_prefix)s -verbose %(verbosity)d"
+    
+    #train_command = "fasttext supervised -input %(input_file)s -output %(output_file)s -lr %(learning_rate)f -lrUpdateRate %(learning_rate_update_rate)d -dim %(word_vector_size)d -ws %(word_context_size)d -epoch %(epochs)d -minCount %(min_word_count)d -minCountLabel %(min_label_count)d -neg %(negatives_sampled)d -wordNgrams %(max_word_ngram)d -loss %(loss_function)s -bucket %(bucket_count)d -minn %(min_char_ngram)d -maxn %(max_char_ngram)d -thread %(threads)d -t %(sampling_threshold)f -label %(label_prefix)s -verbose %(verbosity)d"
+    train_command = "fasttext supervised -input %(input_file)s -output %(output_file)s -dim 16 -minn 2 -maxn 4 -loss hs"
+    #fasttext quantize -input train.txt -output langdetect -qnorm -cutoff 50000 -retrain
+    #-lr %(learning_rate)f -lrUpdateRate %(learning_rate_update_rate)d -dim %(word_vector_size)d -ws %(word_context_size)d -epoch %(epochs)d -minCount %(min_word_count)d -minCountLabel %(min_label_count)d -neg %(negatives_sampled)d -wordNgrams %(max_word_ngram)d -loss %(loss_function)s -bucket %(bucket_count)d -minn %(min_char_ngram)d -maxn %(max_char_ngram)d -thread %(threads)d -t %(sampling_threshold)f -label %(label_prefix)s -verbose %(verbosity)d"
     apply_command = "fasttext predict-prob %(model)s %(test_file)s %(num_labels)d"
 
     # training
@@ -75,7 +79,8 @@ if __name__ == "__main__":
         p = subprocess.Popen(toks)
         p.communicate()
         os.remove(input_fname)
-        shutil.copyfile(model_fname, options.output)
+        with open(model_fname) as ifd, open(options.output, "w") as ofd:
+            ofd.write(ifd.read())
         os.remove(model_fname)
 
     # testing
@@ -89,14 +94,13 @@ if __name__ == "__main__":
                 gold.append((cid, label))
                 ofd.write(text + "\n")
                 labels.add(label)
-        
         logging.info("Testing with %d instances", len(instances))
         args["num_labels"] = 100
         args["test_file"] = test_fname
+        args["model"] = "\"%s\"" % args["model"]
         p = subprocess.Popen(shlex.split(apply_command % args), stdout=subprocess.PIPE)
         out, err = p.communicate()
         os.remove(test_fname)
-        
         data = {}
         for line, (cid, label) in zip(out.strip().split("\n"), gold):
             probs = {k : math.log(float(v)) for k, v in [m.groups() for m in re.finditer(r"__label__(\S+) (\S+)", line)]}

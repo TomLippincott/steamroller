@@ -22,7 +22,10 @@ if __name__ == "__main__":
     ofd = CommunicationWriterTGZ(options.output)
     with reader(gzip.open(options.input)) as ifd:
         for i, line in enumerate(ifd):
-            cid, label, text = line.strip().split("\t")
+            toks = line.strip().split("\t")
+            if len(toks) != 3:
+                continue            
+            cid, label, text = toks
             g = ugf.create()
             t = int(time())
             comm = Communication(id=cid,

@@ -1,5 +1,5 @@
 import gzip
-from io import get_count, writer
+from .io import get_count, writer
 
 if __name__ == "__main__":
 
@@ -11,5 +11,5 @@ if __name__ == "__main__":
     options = parser.parse_args()
 
     n = get_count(options.input)
-    with writer(gzip.open(options.output, "w")) as ofd:
+    with writer(gzip.open(options.output, "wt")) as ofd:
         ofd.write(str(n))

@@ -11,7 +11,8 @@ if __name__ == "__main__":
     import json
     import re
     import gzip
-
+    import sys
+    
     def get_files(path):
         entries = resource_listdir("steamroller", path)
         files = [os.path.join(path, e) for e in entries if
@@ -22,14 +23,13 @@ if __name__ == "__main__":
         return files + sum([get_files(os.path.join(path, d)) for d in dirs], [])
 
     def to_texts(filenames, num):
-        text = "\n".join([resource_string("steamroller", f) for f in filenames])
+        text = "\n".join([str(resource_string("steamroller", f)) for f in filenames])
         lines = [l for l in text.split("\n") if not re.match(r"^\s*$", l)]
-        per = len(lines) / num
+        per = int(len(lines) / num)
         return [re.sub(r"\s", " ", "\n".join(lines[i * per:(i + 1) * per])) for i in range(num)]
 
     def init(args, _):
-        sconstruct = resource_string(__name__, "data/SConstruct")
-        steamroller_config = resource_string(__name__, "data/steamroller_config.json.template")
+        steamroller_config = str(resource_string(__name__, "data/steamroller_config.json.template"))
         python_docs = [re.sub(r"\s", " ", str(getattr(__builtins__, a).__doc__))
                        for a in dir(__builtins__)]
         python_code = to_texts(get_files("/"), len(python_docs))
@@ -41,12 +41,12 @@ if __name__ == "__main__":
             os.mkdir("csv")
         except OSError:
             logging.info("csv/ directory already exists")
-        with gzip.open("csv/example.txt.gz", "w") as ofd:
+        with gzip.open("csv/example.txt.gz", "wt") as ofd:
             for i, t in enumerate(python_docs):
                 ofd.write("%d\tdoc\t%s\n" % (i, t))
             for i, t in enumerate(python_code):
                 ofd.write("%d\tcode\t%s\n" % (len(python_docs) + i, t))
-        subprocess.call(["python",
+        subprocess.call([sys.executable,
                          "-m",
                          "steamroller.tools.convert",
                          "-i",
@@ -58,13 +58,13 @@ if __name__ == "__main__":
         if (not args.force) and (os.path.exists("SConstruct") or os.path.exists("steamroller_config.py")):
             logging.error("Refusing to overwrite existing SConstruct or steamroller_config.json files (try \"--force\")")
         else:
-            with open("SConstruct", "w") as ofd:
-                ofd.write(sconstruct)
             with open("steamroller_config.json", "w") as ofd:
                 ofd.write(steamroller_config)
 
     def run(args, scons_args):
-        subprocess.call(["scons"] + scons_args + ["CONFIG_FILE=%s" % args.config])
+        sconstruct = resource_string(__name__, "data/SConstruct")
+        p = subprocess.Popen(["scons"] + scons_args + ["CONFIG_FILE=%s" % args.config, "-f", "-"], stdin=subprocess.PIPE)
+        p.communicate(sconstruct)
 
     def serve(args, _):
         app = flask.Flask("SteamRoller")

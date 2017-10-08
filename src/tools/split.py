@@ -3,7 +3,7 @@
 import gzip
 import codecs
 import random
-from io import reader, writer
+from .io import reader, writer
 
 if __name__ == "__main__":
 
@@ -29,5 +29,5 @@ if __name__ == "__main__":
 
     with writer(gzip.open(options.test, "w")) as ofd:
         ofd.write("\n".join([str(i) for i in indices[options.training_size:options.training_size+options.testing_size]]))
-
+        
 

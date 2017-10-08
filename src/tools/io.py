@@ -12,7 +12,7 @@ writer = codecs.getwriter("utf-8")
 reader = codecs.getreader("utf-8")
 
 
-def read_data(data_file, num_file, tag_type="attribute"):
+def read_data(data_file, num_file, tag_type, of_interest=None):
     conc = data_file.endswith("tgz")
     nums = set()
     with gzip.open(num_file) as ifd:
@@ -24,9 +24,10 @@ def read_data(data_file, num_file, tag_type="attribute"):
         if n in nums:
             if conc:
                 text = item[0].text
-                cid = item[0].id
-                label = [t for t in item[0].communicationTaggingList if
-                         t.taggingType == tag_type and t.metadata.tool == "Gold labeling"][0].tagList[0]
+                cid = item[0].id                
+                labels = [t for t in item[0].communicationTaggingList if
+                          t.taggingType == tag_type][0].tagList
+                label = "_".join(sorted(labels))
             else:
                 cid, label, text = item.rstrip("\n").split("\t")
             items.append((cid, label, text))
