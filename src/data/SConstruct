@@ -132,8 +132,10 @@ for task in env["TASKS"]:
 
     else:
         train_data = env.File(task["TRAIN_FILE"])
+        dev_data = env.File(task["DEV_FILE"])
         test_data = env.File(task["TEST_FILE"])
         train_indices, _ = env.NoSplit("work/${TASK_NAME}_train.txt.gz", train_data, TASK_NAME=task_name)
+        dev_indices, _ = env.NoSplit("work/${TASK_NAME}_dev.txt.gz", dev_data, TASK_NAME=task_name)
         test_indices, _ = env.NoSplit("work/${TASK_NAME}_test.txt.gz", test_data, TASK_NAME=task_name)
         
         for model in env["MODELS"]:
@@ -161,6 +163,17 @@ for task in env["TASKS"]:
             )
             apply_resource_list.append(resources)
             classified_items.append(classified)
+            for k, v in task.get("OTHER_DATA_SETS", {}).items():
+                other_data = env.File(v)
+                other_indices, _ = env.NoSplit("work/${TASK_NAME}_${OTHER_FILE}_other.txt.gz", other_data, TASK_NAME=task_name, OTHER_FILE=k)
+                classified, resources = apply_builder(env,
+                                                      "work/${TASK_NAME}_${MODEL_NAME}_1_1_${OTHER_FILE}_probabilities.txt.gz",
+                                                      [model_file, other_indices, other_data],
+                                                      TASK_NAME=task_name, MODEL_NAME=model_name, OTHER_FILE=k,
+                                                      GRID_RESOURCES=model.get("grid_resources", []),
+                                                      TAG_TYPE=task.get("TAG_TYPE", "attribute")                                                      
+                )
+
 
 
             
@@ -174,6 +187,8 @@ for task in env["TASKS"]:
         metrics = [accuracies, fscores, train_resources, apply_resources, model_sizes]
         vals = env.CombineCSVs("work/${TASK_NAME}_metrics.txt.gz", metrics, TASK_NAME=task_name)
         for figure in env["FIGURES"]:
+            if figure.get("DISABLED", False):
+                continue            
             env.Plot("work/${TASK_NAME}_${PLOT_NAME}.png", vals,
                      TASK_NAME=task_name,
                      PLOT_NAME=figure["NAME"],

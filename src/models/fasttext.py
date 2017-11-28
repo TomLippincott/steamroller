@@ -53,7 +53,7 @@ if __name__ == "__main__":
     args = {k : v for k, v in options._get_kwargs()}
     
     #train_command = "fasttext supervised -input %(input_file)s -output %(output_file)s -lr %(learning_rate)f -lrUpdateRate %(learning_rate_update_rate)d -dim %(word_vector_size)d -ws %(word_context_size)d -epoch %(epochs)d -minCount %(min_word_count)d -minCountLabel %(min_label_count)d -neg %(negatives_sampled)d -wordNgrams %(max_word_ngram)d -loss %(loss_function)s -bucket %(bucket_count)d -minn %(min_char_ngram)d -maxn %(max_char_ngram)d -thread %(threads)d -t %(sampling_threshold)f -label %(label_prefix)s -verbose %(verbosity)d"
-    train_command = "fasttext supervised -input %(input_file)s -output %(output_file)s -dim 16 -minn 2 -maxn 4 -loss hs"
+    train_command = "fasttext supervised -input %(input_file)s -output %(output_file)s -dim 16 -minn 1 -maxn 3 -loss hs -epoch %(epochs)s"
     #fasttext quantize -input train.txt -output langdetect -qnorm -cutoff 50000 -retrain
     #-lr %(learning_rate)f -lrUpdateRate %(learning_rate_update_rate)d -dim %(word_vector_size)d -ws %(word_context_size)d -epoch %(epochs)d -minCount %(min_word_count)d -minCountLabel %(min_label_count)d -neg %(negatives_sampled)d -wordNgrams %(max_word_ngram)d -loss %(loss_function)s -bucket %(bucket_count)d -minn %(min_char_ngram)d -maxn %(max_char_ngram)d -thread %(threads)d -t %(sampling_threshold)f -label %(label_prefix)s -verbose %(verbosity)d"
     apply_command = "fasttext predict-prob %(model)s %(test_file)s %(num_labels)d"
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     if options.train and options.output and options.input:
         data = read_data(options.input, options.train, tag_type=options.tag_type)
         instances = [x[2] for x in data]
-        _, model_fname = tempfile.mkstemp(suffix=".bin")
+        _, model_fname = tempfile.mkstemp()
         base_fname = os.path.splitext(model_fname)[0]
         vec_fname = "%s.vec" % (base_fname)
         _, input_fname = tempfile.mkstemp()
@@ -71,15 +71,17 @@ if __name__ == "__main__":
             label_lookup[l] = label_lookup.get(l, len(label_lookup))
         with writer(open(input_fname, "w")) as ofd:
             for _, label, text in data:
-                ofd.write("__label__%s %s\n" % (label, text))
+                ofd.write("__label__%s %s\n" % (label, re.sub(r"\s+", " ", text).lower()))
         logging.info("Training with %d instances, %d labels", len(data), len(label_lookup))
         args["input_file"] = input_fname
         args["output_file"] = base_fname
         toks = shlex.split(train_command % args)
         p = subprocess.Popen(toks)
         p.communicate()
+        p = subprocess.Popen(("fasttext quantize -input %(input_file)s -output %(output_file)s -qnorm -cutoff 50000 -retrain" % args).split())
+        p.communicate()
         os.remove(input_fname)
-        with open(model_fname) as ifd, open(options.output, "w") as ofd:
+        with open("%s.ftz" % model_fname) as ifd, open(options.output, "w") as ofd:
             ofd.write(ifd.read())
         os.remove(model_fname)
 
@@ -92,7 +94,8 @@ if __name__ == "__main__":
             for cid, label, text in read_data(options.input, options.test, tag_type=options.tag_type):
                 instances.append(text)
                 gold.append((cid, label))
-                ofd.write(text + "\n")
+                ofd.write(re.sub(r"\s+", " ", text).lower() + "\n")
+                #ofd.write(text + "\n")
                 labels.add(label)
         logging.info("Testing with %d instances", len(instances))
         args["num_labels"] = 100
@@ -103,7 +106,7 @@ if __name__ == "__main__":
         os.remove(test_fname)
         data = {}
         for line, (cid, label) in zip(out.strip().split("\n"), gold):
-            probs = {k : math.log(float(v)) for k, v in [m.groups() for m in re.finditer(r"__label__(\S+) (\S+)", line)]}
+            probs = {k : math.log(float(v)) if float(v) > 0.0 else 0 for k, v in [m.groups() for m in re.finditer(r"__label__(\S+) (\S+)", line)]}
             for k in probs.keys():
                 labels.add(k)
             data[cid] = (label, probs)

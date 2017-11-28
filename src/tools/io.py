@@ -3,6 +3,7 @@ import gzip
 import codecs
 import os.path
 import logging
+import numpy
 
 
 logging.basicConfig(level=logging.INFO)
@@ -17,13 +18,13 @@ def read_data(data_file, num_file, tag_type, of_interest=None):
     nums = set()
     with gzip.open(num_file) as ifd:
         for n in ifd:
-            nums.add(int(n.rstrip("\n")))
+            nums.add(int(n.rstrip(b"\n")))
     items = []
     ifd = CommunicationReader(data_file) if conc else reader(gzip.open(data_file))
     for n, item in enumerate(ifd):
         if n in nums:
             if conc:
-                text = item[0].text
+                text = item[0].text.lower()
                 cid = item[0].id                
                 labels = [t for t in item[0].communicationTaggingList if
                           t.taggingType == tag_type][0].tagList
@@ -44,10 +45,11 @@ def write_probabilities(data, output_file):
         for l in probs.keys():
             codes.add(l)
     codes = sorted(codes)
+    norm = numpy.logaddexp.reduce(probs.values())
     with writer(gzip.open(output_file, "w")) as ofd:
         ofd.write("\t".join(["DOC", "GOLD"] + codes) + "\n")
         for cid, (label, probs) in data.iteritems():
-            ofd.write("\t".join([cid, label] + [str(probs.get(c, float("-inf"))) for c in codes]) + "\n")
+            ofd.write("\t".join([cid, label] + [str(probs.get(c, float("-inf")) - norm) for c in codes]) + "\n")
 
 
 def get_count(data_file):

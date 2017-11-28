@@ -16,7 +16,7 @@ from numpy import logspace
 models = {
     #"sgd" : (linear_model.SGDClassifier, {"penalty" : "l2", "n_iter" : 1000}, [{"alpha" : logspace(1, 7, 7)}]),
     "naive_bayes" : (naive_bayes.MultinomialNB, {}, {"alpha" : [0.0, 1.0]}),
-    "svm" : (svm.LinearSVC, {}, {"C" : logspace(-4, 4, 9)}),
+    "svm" : (svm.SVC, {"kernel" : "linear", "probability" : True}, {"C" : logspace(-4, 4, 9)}),
     #"svm" : (svm.SVC, {}, [{"kernel" : ["linear"], "C" : logspace(-3, 3, 7)},
     #                       {"kernel" : ["rbf"], "C" : logspace(-3, 3, 7), "gamma" : logspace(-9, 3, 13)}],
     #),                   

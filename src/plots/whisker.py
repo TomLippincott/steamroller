@@ -4,7 +4,7 @@ import gzip
 import csv
 import matplotlib as mpl
 mpl.use('Agg')
-from plotnine import ggplot, aes, geom_boxplot, coord_flip, theme, geom_violin, geom_point, scale_x_continuous, ylab, xlab, stat_smooth, geom_line, ggtitle, guide_legend, theme_minimal, theme_void, theme_update, element_text, labs
+from plotnine import ggplot, aes, geom_boxplot, coord_flip, theme, geom_violin, geom_point, scale_x_continuous, ylab, xlab, stat_smooth, geom_line, ggtitle, guide_legend, theme_minimal, theme_void, theme_update, element_text, labs, geom_col, lims
 from plotnine.themes.themeable import legend_title
 from plotnine.guides import guide_legend, guides
 import re
@@ -50,12 +50,14 @@ if __name__ == "__main__":
             data[k] = floats
 
     df = pandas.DataFrame(data)
-    print df
+    #print df
     x = (ggplot(df, aes("factor(%s)" % (options.x), options.y, color="factor(%s)" % (options.color)))) + \
-        theme(legend_title=element_text("")) + \
         ggtitle(options.title.strip("'")) + \
         ylab(options.ylabel.strip("'")) + \
         xlab(options.xlabel.strip("'")) + \
         labs(color=options.color_label.strip("'")) + \
-        geom_boxplot()
+        geom_col(show_legend=False) + \
+        lims(y=(0.0, 1.0))
     x.save(options.output)
+
+    #theme(legend_title=element_text("")) + \

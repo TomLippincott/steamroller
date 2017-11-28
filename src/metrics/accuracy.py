@@ -16,7 +16,7 @@ if __name__ == "__main__":
     scores = {}
     accuracies = {}
     for f in options.inputs:
-        task, model, size, fold = re.match(r"^work/(.*)_(.*)_(.*)_(.*)_probabilities.txt.gz$", f).groups()
+        task, model, size, fold = re.match(r"^work/(.*?)_(.*?)_(.*?)_(.*?)_.*probabilities.txt.gz$", f).groups()
         size = int(size)
         fold = int(fold)
         vals = {}

@@ -7,7 +7,8 @@
 #
 
 
-def instances_and_lookups(input_file, index_file, sym_lookup={"unk" : 0}, label_lookup={"unk" : 0}, tag_type="attribute"):
+#def instances_and_lookups(input_file, index_file, sym_lookup={"unk" : 0}, label_lookup={"unk" : 0}, tag_type="attribute"):
+def instances_and_lookups(input_file, index_file, sym_lookup={"unk" : 0}, label_lookup={}, tag_type="attribute"):    
     """
     Read communications and create integer encodings for them, along with lookups to recover the
     strings.  "unk" is mapped to 0 for both symbols and labels, to handle OOV at test time.  If
@@ -17,9 +18,10 @@ def instances_and_lookups(input_file, index_file, sym_lookup={"unk" : 0}, label_
     In other words, when reading training data, don't pass lookups.  When reading test data, pass in
     the lookups from the training data.
     """
-    assert(sym_lookup["unk"] == 0 and label_lookup["unk"] == 0)
+    #assert(sym_lookup["unk"] == 0 and label_lookup["unk"] == 0)
     update_sym = len(sym_lookup) == 1
-    update_label = len(label_lookup) == 1
+    #update_label = len(label_lookup) == 1
+    update_label = len(label_lookup) == 0
     cid_lookup = {}
     instances, labels = [], []
     unk_sym_occs, unk_sym_types = 0, set()
