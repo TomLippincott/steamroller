@@ -16,7 +16,7 @@ from steamroller.tools.io import read_data, write_probabilities, writer, reader,
 
 def format_instance(ident, label_id, ns):
     "[Label] [Importance] [Base] [Tag]|Namespace Features |Namespace Features ... |Namespace Features"
-    feats = " ".join(["%s:%f" % ("".join(k).strip(), v) for k, v in ns.iteritems()])
+    feats = " ".join(["%s:%f" % ("".join(k).strip(), v) for k, v in ns.items()])
     return "%d 1 0 %s|Feats %s" % (label_id, ident, feats)
 
 if __name__ == "__main__":
@@ -124,4 +124,4 @@ if __name__ == "__main__":
         #     data[cid] = (label, probs)
         # write_probabilities(data, options.output)
     else:
-        print "ERROR: you must specify --input and --output, and either --train or --test and --model!"
+        print("ERROR: you must specify --input and --output, and either --train or --test and --model!")

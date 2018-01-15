@@ -45,15 +45,15 @@ def generate(env):
     )
 
     for name, command in [
-            ("GetCount", "python -m steamroller.tools.count --input ${SOURCES[0]} --output ${TARGETS[0]}"),
-            ("CreateSplit", "python -m steamroller.tools.split --total_file ${SOURCES[0]} --training_size ${TRAINING_SIZE} --testing_size ${TESTING_SIZE} --train ${TARGETS[0]} --test ${TARGETS[1]}"),
-            ("NoSplit", "python -m steamroller.tools.nosplit -i ${SOURCES[0]} -o ${TARGETS[0]}"),
-            ("Accuracy", "python -m steamroller.metrics.accuracy -o ${TARGETS[0]} ${SOURCES}"),
-            ("FScore", "python -m steamroller.metrics.fscore -o ${TARGETS[0]} ${SOURCES}"),            
-            ("CollateResources", "python -m steamroller.tools.resources -o ${TARGETS[0]} -s ${STAGE} ${SOURCES}"),
-            ("CombineCSVs", "python -m steamroller.tools.combine_csvs -o ${TARGETS[0]} ${SOURCES}"),
-            ("ModelSizes", "python -m steamroller.tools.model_sizes -o ${TARGETS[0]} ${SOURCES}"),        
-            ("Plot", "python -m steamroller.plots.${TYPE} --output ${TARGETS[0]} --x ${X} --y ${Y} --xlabel \"${XLABEL}\" --ylabel \"${YLABEL}\" --title \"'${TITLE}'\" --input ${SOURCES[0]} --color \"${COLOR}\" --color_label \"'${COLOR_LABEL}'\""),
+            ("GetCount", "${PYTHON} -m steamroller.tools.count --input ${SOURCES[0]} --output ${TARGETS[0]}"),
+            ("CreateSplit", "${PYTHON} -m steamroller.tools.split --total_file ${SOURCES[0]} --training_size ${TRAINING_SIZE} --testing_size ${TESTING_SIZE} --train ${TARGETS[0]} --test ${TARGETS[1]}"),
+            ("NoSplit", "${PYTHON} -m steamroller.tools.nosplit -i ${SOURCES[0]} -o ${TARGETS[0]}"),
+            ("Accuracy", "${PYTHON} -m steamroller.metrics.accuracy -o ${TARGETS[0]} ${SOURCES}"),
+            ("FScore", "${PYTHON} -m steamroller.metrics.fscore -o ${TARGETS[0]} ${SOURCES}"),            
+            ("CollateResources", "${PYTHON} -m steamroller.tools.resources -o ${TARGETS[0]} -s ${STAGE} ${SOURCES}"),
+            ("CombineCSVs", "${PYTHON} -m steamroller.tools.combine_csvs -o ${TARGETS[0]} ${SOURCES}"),
+            ("ModelSizes", "${PYTHON} -m steamroller.tools.model_sizes -o ${TARGETS[0]} ${SOURCES}"),        
+            ("Plot", "${PYTHON} -m steamroller.plots.${TYPE} --output ${TARGETS[0]} --x ${X} --y ${Y} --xlabel \"${XLABEL}\" --ylabel \"${YLABEL}\" --title \"'${TITLE}'\" --input ${SOURCES[0]} --color \"${COLOR}\" --color_label \"'${COLOR_LABEL}'\""),
     ]:
         env["BUILDERS"][name] = make_builder(env, command, name)
         

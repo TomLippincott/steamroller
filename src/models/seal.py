@@ -350,8 +350,8 @@ if __name__ == "__main__":
             )
             
             random.shuffle(instances)
-            id_to_label = {v : k for k, v in label_lookup.iteritems()}
-            id_to_cid = {v : k for k, v in cid_lookup.iteritems()}
+            id_to_label = {v : k for k, v in label_lookup.items()}
+            id_to_cid = {v : k for k, v in cid_lookup.items()}
             test = example_generator(instances)
             
             with tf.Graph().as_default():

@@ -21,8 +21,8 @@ models = {
     #                       {"kernel" : ["rbf"], "C" : logspace(-3, 3, 7), "gamma" : logspace(-9, 3, 13)}],
     #),                   
     "logistic_regression" : (linear_model.LogisticRegression, {"class_weight" : "balanced"}, {"penalty" : ["l1", "l2"], "C" : logspace(-4, 4, 9)}),
-    "random_forest" : (ensemble.RandomForestClassifier, {"class_weight" : "balanced"}, []),
-    #"prior" : (dummy.DummyClassifier, {"strategy" : "prior"}, []),
+    "random_forest" : (ensemble.RandomForestClassifier, {"class_weight" : "balanced"}, {}),
+    "prior" : (dummy.DummyClassifier, {"strategy" : "prior"}, {}),
 }
 
 
@@ -55,6 +55,7 @@ if __name__ == "__main__":
         X = dv.fit_transform(instances)
         fs = SelectKBest(k=options.kbest if options.kbest > 0 else X.shape[1])
         X = fs.fit_transform(X, labels)
+        print(X.shape)
         label_lookup = {}
         classifier_class, args, hypers = models[options.model_type]
         classifier = GridSearchCV(classifier_class(**args), hypers)
@@ -76,7 +77,7 @@ if __name__ == "__main__":
         X = instances
         for t in ts:
             X = t.transform(X)
-        inv_label_lookup = {v : k for k, v in label_lookup.iteritems()}
+        inv_label_lookup = {v : k for k, v in label_lookup.items()}
         data = {}
         order = [inv_label_lookup[i] for i in range(len(inv_label_lookup))]
         if hasattr(classifier, "predict_log_proba"):
@@ -88,4 +89,4 @@ if __name__ == "__main__":
                 data[cid] = (g, {k : v for k, v in zip(order, probs)})
         write_probabilities(data, options.output)
     else:
-        print "ERROR: you must specify --input and --output, and either --train or --test and --model!"
+        print("ERROR: you must specify --input and --output, and either --train or --test and --model!")

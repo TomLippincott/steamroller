@@ -38,7 +38,7 @@ if __name__ == "__main__":
     data = {}
     with gzip.open(options.input) as ifd:
         for row in csv.DictReader(ifd, delimiter="\t"):
-            for k, v in row.iteritems():
+            for k, v in row.items():
                 data[k] = data.get(k, [])
                 data[k].append(v)
     

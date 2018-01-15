@@ -42,7 +42,7 @@ config_vars = [
     ("MODELS", "", config["MODELS"]),
     ("TASKS", "", config["TASKS"]),
     ("FIGURES", "", config["FIGURES"]),
-] + [(k, "", v) for k, v in config["DEFAULTS"].iteritems()]
+] + [(k, "", v) for k, v in config["DEFAULTS"].items()]
 
 # actual variable and environment objects
 vars = Variables()

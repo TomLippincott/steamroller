@@ -41,16 +41,18 @@ def write_probabilities(data, output_file):
     }    
     """
     codes = set()
-    for i, (gold, probs) in data.iteritems():
+    for i, (gold, probs) in data.items():
         for l in probs.keys():
             codes.add(l)
     codes = sorted(codes)
-    norm = numpy.logaddexp.reduce(probs.values())
     with writer(gzip.open(output_file, "w")) as ofd:
         ofd.write("\t".join(["DOC", "GOLD"] + codes) + "\n")
-        for cid, (label, probs) in data.iteritems():
-            ofd.write("\t".join([cid, label] + [str(probs.get(c, float("-inf")) - norm) for c in codes]) + "\n")
-
+        for cid, (label, probs) in data.items():
+            #print(probs)
+            ofd.write("\t".join([cid, label] + [str(probs.get(c, float("-inf"))) for c in codes]) + "\n")
+            #norm = numpy.logaddexp.reduce(probs.values())
+            #ofd.write("\t".join([cid, label] + [str(probs.get(c, float("-inf")) - norm) for c in codes]) + "\n")
+    
 
 def get_count(data_file):
     conc = data_file.endswith("tgz")
@@ -69,4 +71,4 @@ def extract_character_ngrams(text, n):
         stack = stack[1:]
         stack.append(c)
         ngrams[tuple(stack)] = ngrams.get(tuple(stack), 0) + 1
-    return list(ngrams.iteritems())
+    return list(ngrams.items())

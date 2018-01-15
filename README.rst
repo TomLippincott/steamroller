@@ -92,6 +92,12 @@ Looking again at the default *steamroller_config.json*, there is an entry::
 
 SteamRoller comes with several common models predefined based on the Scikit-Learn suite, which is why these commands are invoking parts of SteamRoller itself, but the only requirement is that the commands meet the criteria described above and can run on the relevant machines (locally or across a grid).
 
+---
+The metrics database
+---
+
+After all experiments have been run, you will have a lot of files ending in *probabilities.txt.gz*.  Each of these is the result of applying a particular *model file* to a particular *data file*, in the tab-separated format produced by an *apply_command* described in the previous section.
+
 ----
 Defining a new plot
 ----
@@ -112,7 +118,7 @@ Plots, which used to be hard-coded, are now specified in the configuration file 
 	...
 
 This is asking for a *whisker* plot (currently the only type implemented), where the X-axis is the training *size*, Y-axis is the f-score, and the points are colored by the model type.  Other values (namely, *fold*) are aggregated over and used to compute the variance.  Each plot is performed per-task.
-	
+
 ----
 FAQ
 ----

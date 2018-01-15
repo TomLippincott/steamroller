@@ -11,5 +11,5 @@ if __name__ == "__main__":
     options = parser.parse_args()
 
     n = get_count(options.input)
-    with writer(gzip.open(options.output, "wt")) as ofd:
-        ofd.write(str(n))
+    with writer(gzip.open(options.output, "w")) as ofd:
+        ofd.write("%d" % (n))

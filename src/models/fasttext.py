@@ -112,4 +112,4 @@ if __name__ == "__main__":
             data[cid] = (label, probs)
         write_probabilities(data, options.output)
     else:
-        print "ERROR: you must specify --input and --output, and either --train or --test and --model!"
+        print("ERROR: you must specify --input and --output, and either --train or --test and --model!")

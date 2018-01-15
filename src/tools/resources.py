@@ -43,16 +43,16 @@ if __name__ == "__main__":
     vals = {}
     for f in options.inputs:
         task, model, size, fold, _ = re.match(r"^work/(.*?)_(.*?)_(.*?)_(.*?)(\.|_).*txt$", f).groups()
-        size = int(size)
-        fold = int(fold)
+        #size = int(size)
+        #fold = int(fold)
         with open(f) as ifd:
             key = (task, size, model, fold)
-            res = {k : float(v) for k, v in pattern.search(ifd.read()).groupdict().iteritems()}
+            res = {k : float(v) for k, v in pattern.search(ifd.read()).groupdict().items()}
             vals[key] = (res["maxresidentset"], res["usertime"])
 
     with gzip.open(options.output, "w") as ofd:
         c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "%s_Memory" % (options.stage), "%s_CPU" % (options.stage)], delimiter="\t")
         c.writeheader()
-        for (task, size, model, fold), (mem, cpu) in sorted(vals.iteritems()):
+        for (task, size, model, fold), (mem, cpu) in sorted(vals.items()):
             c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "%s_Memory" % (options.stage) : mem / 1000000.0, "%s_CPU" % (options.stage) : cpu})
 

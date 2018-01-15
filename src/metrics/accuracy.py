@@ -17,8 +17,8 @@ if __name__ == "__main__":
     accuracies = {}
     for f in options.inputs:
         task, model, size, fold = re.match(r"^work/(.*?)_(.*?)_(.*?)_(.*?)_.*probabilities.txt.gz$", f).groups()
-        size = int(size)
-        fold = int(fold)
+        #size = int(size)
+        #fold = int(fold)
         vals = {}
         correct, incorrect = 0.0, 0.0
         truepos = 0.0
@@ -33,7 +33,7 @@ if __name__ == "__main__":
                 toks = l.strip().split("\t")
                 cid, gold = toks[0:2]
                 s = {k : float(v) for k, v in zip(fields[2:], toks[2:])}
-                guess = sorted([(v, k) for k, v in s.iteritems()])[-1][1]
+                guess = sorted([(v, k) for k, v in s.items()])[-1][1]
                 y_true.append(gold)
                 y_pred.append(guess)
                 if gold == guess:
@@ -47,6 +47,6 @@ if __name__ == "__main__":
     with gzip.open(options.output, "w") as ofd:
         c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "Accuracy"], delimiter="\t")
         c.writeheader()
-        for (task, size, model, fold), a in sorted(accuracies.iteritems()):
+        for (task, size, model, fold), a in sorted(accuracies.items()):
             ss = numpy.array(a)
             c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "Accuracy" : ss.mean()})

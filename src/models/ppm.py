@@ -20,6 +20,7 @@ if __name__ == "__main__":
     parser.add_argument("--tag-type", dest="tag_type", default="attribute")
     parser.add_argument("--dev", dest="dev")
     parser.add_argument("--test", dest="test")
+    parser.add_argument("--prior", dest="prior", default=False, action="store_true")
     parser.add_argument("--model", dest="model")
     parser.add_argument("--output", dest="output")
     parser.add_argument("--max_ngram", dest="max_ngram", type=int, default=4)
@@ -47,12 +48,12 @@ if __name__ == "__main__":
         with gzip.open(options.model) as ifd:
             model, counts = pickle.load(ifd)
         total = sum(counts.values())
-        prior = {k : math.log(v / float(total)) for k, v in counts.iteritems()}
+        prior = {k : math.log(v / float(total)) for k, v in counts.items()}
         codes = model.compressors.keys()
         logging.info("Testing with %d instances, %d labels", len(instances), len(codes))
         data = {}
         for (cid, label), text in zip(gold, instances):
-            probs = {k : v + prior[k] for k, v in model.classify(text).iteritems()}
-            total = reduce(numpy.logaddexp, probs.values())
+            probs = {k : v + (prior[k] if options.prior else 0.0) for k, v in model.classify(text).items()}
+            #total = reduce(numpy.logaddexp, probs.values())
             data[cid] = (label, probs)
         write_probabilities(data, options.output)
