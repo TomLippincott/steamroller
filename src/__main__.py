@@ -30,7 +30,7 @@ if __name__ == "__main__":
         return ret
 
     def init(args, _):
-        steamroller_config = resource_string(__name__, "data/steamroller_config.json.template").decode()
+        steamroller_config = resource_string(__name__, "data/steamroller_config.json").decode()
         python_docs = [re.sub(r"\s", " ", str(getattr(__builtins__, a).__doc__))
                        for a in dir(__builtins__)]
         python_code = to_texts(get_files("/"), len(python_docs))

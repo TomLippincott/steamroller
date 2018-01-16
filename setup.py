@@ -19,6 +19,6 @@ setup(name="SteamRoller",
                 "steamroller.scons"],
       package_dir={"steamroller" : "src"},
       scripts=["scripts/steamroller"],
-      install_requires=["concrete", "scikit-learn>=0.18.1", "scons>=3.0.0", "plotnine", "flask", "valid", "tqdm", "tensorflow>=1.0.0"],
-      package_data={"" : ["data/SConstruct", "data/steamroller_config.json.template"]},
+      install_requires=["concrete", "scikit-learn>=0.18.1", "scons>=3.0.0", "plotnine", "flask", "valid", "tqdm", "tensorflow>=1.0.0", "nltk"],
+      package_data={"" : ["data/SConstruct", "data/steamroller_config.json"]},
      )
