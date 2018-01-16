@@ -29,7 +29,7 @@ if __name__ == "__main__":
         return [re.sub(r"\s", " ", "\n".join(lines[i * per:(i + 1) * per])) for i in range(num)]
 
     def init(args, _):
-        steamroller_config = str(resource_string(__name__, "data/steamroller_config.json.template"))
+        steamroller_config = resource_string(__name__, "data/steamroller_config.json.template").decode()
         python_docs = [re.sub(r"\s", " ", str(getattr(__builtins__, a).__doc__))
                        for a in dir(__builtins__)]
         python_code = to_texts(get_files("/"), len(python_docs))

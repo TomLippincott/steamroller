@@ -1,1 +1,2 @@
-import fscore
+from . import fscore
+from . import accuracy

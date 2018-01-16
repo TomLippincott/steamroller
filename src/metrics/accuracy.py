@@ -30,7 +30,7 @@ if __name__ == "__main__":
             y_true = []
             y_pred = []
             for l in ifd:
-                toks = l.strip().split("\t")
+                toks = l.decode().strip().split("\t")
                 cid, gold = toks[0:2]
                 s = {k : float(v) for k, v in zip(fields[2:], toks[2:])}
                 guess = sorted([(v, k) for k, v in s.items()])[-1][1]
