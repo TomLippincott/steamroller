@@ -5,3 +5,4 @@ from . import resources
 from . import model_sizes
 from . import convert
 from . import nosplit
+from . import timer

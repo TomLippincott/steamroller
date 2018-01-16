@@ -4,7 +4,7 @@ import gzip
 import codecs
 import random
 import csv
-from io import reader, writer
+from steamroller.tools.io import reader, writer
 
 if __name__ == "__main__":
 
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     fields = set()
     rows = {}
     for ifile in options.inputs:
-        with gzip.open(ifile) as ifd:
+        with open(ifile) as ifd:
             for entry in csv.DictReader(ifd, delimiter="\t"):
                 key = tuple([entry[f] for f in key_fields])
                 rows[key] = rows.get(key, {})
@@ -29,9 +29,9 @@ if __name__ == "__main__":
                         rows[key][k] = v
                     
 
-    with gzip.open(options.output, "w") as ofd:
+    with open(options.output, "w") as ofd:
         c = csv.DictWriter(ofd, fieldnames=fields, delimiter="\t")
         c.writeheader()
         for fs, r in rows.items():
-            c.writerow({k : v for k, v in zip(key_fields, fs) + list(r.items())})
+            c.writerow({k : v for k, v in list(zip(key_fields, fs)) + list(r.items())})
 

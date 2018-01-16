@@ -36,7 +36,7 @@ if __name__ == "__main__":
     all_models = set()
     all_tasks = set()
     data = {}
-    with gzip.open(options.input) as ifd:
+    with open(options.input) as ifd:
         for row in csv.DictReader(ifd, delimiter="\t"):
             for k, v in row.items():
                 data[k] = data.get(k, [])

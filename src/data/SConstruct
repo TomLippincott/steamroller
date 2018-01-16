@@ -178,7 +178,7 @@ for task in env["TASKS"]:
 
             
 
-    if len(classified_items) > 0 and False:        
+    if len(classified_items) > 0:
         fscores, _ = env.FScore("work/${TASK_NAME}_fscores.txt.gz", classified_items, TASK_NAME=task_name)
         accuracies, _ = env.Accuracy("work/${TASK_NAME}_accuracies.txt.gz", classified_items, TASK_NAME=task_name)        
         train_resources, _ = env.CollateResources("work/${TASK_NAME}_trainresources.txt.gz", train_resource_list, TASK_NAME=task_name, STAGE="train")

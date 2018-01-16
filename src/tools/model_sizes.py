@@ -24,7 +24,7 @@ if __name__ == "__main__":
         key = (task, size, model, fold)
         sizes[key] = os.lstat(f).st_size
         
-    with gzip.open(options.output, "w") as ofd:
+    with open(options.output, "w") as ofd:
         c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "Megabytes"], delimiter="\t")
         c.writeheader()
         for (task, size, model, fold), s in sorted(sizes.items()):

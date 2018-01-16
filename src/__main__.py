@@ -23,10 +23,11 @@ if __name__ == "__main__":
         return files + sum([get_files(os.path.join(path, d)) for d in dirs], [])
 
     def to_texts(filenames, num):
-        text = "\n".join([str(resource_string("steamroller", f)) for f in filenames])
+        text = "\n".join([resource_string("steamroller", f).decode() for f in filenames])
         lines = [l for l in text.split("\n") if not re.match(r"^\s*$", l)]
         per = int(len(lines) / num)
-        return [re.sub(r"\s", " ", "\n".join(lines[i * per:(i + 1) * per])) for i in range(num)]
+        ret = [re.sub(r"\s", " ", "\n".join(lines[i * per:(i + 1) * per])) for i in range(num)]
+        return ret
 
     def init(args, _):
         steamroller_config = resource_string(__name__, "data/steamroller_config.json.template").decode()

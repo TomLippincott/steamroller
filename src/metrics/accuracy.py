@@ -26,7 +26,7 @@ if __name__ == "__main__":
         trueneg = 0.0
         falseneg = 0.0
         with gzip.open(f) as ifd:
-            fields = ifd.readline().strip().split("\t")
+            fields = ifd.readline().decode().strip().split("\t")
             y_true = []
             y_pred = []
             for l in ifd:
@@ -43,10 +43,21 @@ if __name__ == "__main__":
                         
             key = (task, size, model, fold)
             accuracies[key] = accuracies.get(key, []) + [correct / (correct + incorrect)]
-
-    with gzip.open(options.output, "w") as ofd:
+            
+    with open(options.output, "w") as ofd:
         c = csv.DictWriter(ofd, fieldnames=["task", "size", "model", "fold", "Accuracy"], delimiter="\t")
         c.writeheader()
         for (task, size, model, fold), a in sorted(accuracies.items()):
             ss = numpy.array(a)
             c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "Accuracy" : ss.mean()})
+
+    # with gzip.open(options.output, "w") as ofd:
+    #     fieldnames=["task", "size", "model", "fold", "Accuracy"]
+    #     #, delimiter="\t")
+    #     #c = csv.DictWriter(ofd, 
+    #     #c.writeheader()
+    #     ofd.write(b"\t".join([f.encode() for f in fieldnames]) + b"\n")
+    #     for (task, size, model, fold), a in sorted(accuracies.items()):
+    #         ss = numpy.array(a)
+    #         #c.writerow({"task" : task, "model" : model, "size" : size, "fold" : fold, "Accuracy" : ss.mean()})
+    #         ofd.write(b"\t".join([str(v).encode() for v in [task, size, model, fold, ss.mean()]]) + b"\n")

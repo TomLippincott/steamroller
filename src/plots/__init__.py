@@ -1,1 +1,1 @@
-import whisker
+from . import whisker

@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name="SteamRoller",
-      version="1.0.18",
+      version="1.0.19",
       description="An experimental framework for text classification experiments",
       author="Tom Lippincott",
       author_email="tom@cs.jhu.edu",

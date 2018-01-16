@@ -25,7 +25,7 @@ def make_emitter(script):
 
 
 def make_builder(env, base_command, name):
-    timed_command = "/usr/bin/time --verbose -o ${TARGETS[-1]} " + base_command
+    timed_command = "python -m steamroller.tools.timer ${TARGETS[-1]} -- " + base_command
     def grid_method(target, source, env):
         depends_on = set(filter(lambda x : x != None, [s.GetTag("built_by_job") for s in source]))
         job_id = qsub(env.subst(timed_command, source=source, target=target), name, "{}.qout".format(target[-1].rstr()), depends_on, env["GRID_RESOURCES"])
