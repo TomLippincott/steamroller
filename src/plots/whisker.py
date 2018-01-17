@@ -50,13 +50,13 @@ if __name__ == "__main__":
             data[k] = floats
 
     df = pandas.DataFrame(data)
-    #print df
+
     x = (ggplot(df, aes("factor(%s)" % (options.x), options.y, color="factor(%s)" % (options.color)))) + \
         ggtitle(options.title.strip("'")) + \
         ylab(options.ylabel.strip("'")) + \
         xlab(options.xlabel.strip("'")) + \
         labs(color=options.color_label.strip("'")) + \
-        geom_col(show_legend=False) + \
+        geom_col(show_legend=True) + \
         lims(y=(0.0, 1.0))
     x.save(options.output)
 

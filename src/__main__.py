@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
         @app.route("/work/<image_file>")
         def image(image_file):
-            with open(os.path.join("work", image_file)) as ifd:
+            with open(os.path.join("work", image_file), "rb") as ifd:
                 return ifd.read()
 
         app.run(port=options.port, host=options.host)
