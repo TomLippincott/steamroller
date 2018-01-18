@@ -3,9 +3,9 @@
     "HELP" : "These are general values that can be overridden by specific tasks or models.  For example, you might have a task with a smaller data set where `sizes` ranges too high, so you could override it in that task definition.",
     "DEFAULTS" : {
 	"HELP" : "What training sizes (number of documents) to run experiments with, proportions for train and test, number of random folds per experiment",
-	"TRAINING_SIZES" : [10, 20, 40, 80, 160],
+	"TRAINING_SIZES" : [40, 80, 160],
 	"TESTING_SIZE" : 100,
-	"FOLD_COUNT" : 5,
+	"FOLD_COUNT" : 3,
 	"MAX_NGRAM" : 3,
 	"GRID" : false,
 	"GRID_RESOURCES" : []
@@ -44,15 +44,9 @@
 	},
 
 	{"NAME" : "Prior",
-	 "DISABLED" : true,
+	 "DISABLED" : false,
 	 "TRAIN_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --model-type prior --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}",
 	 "APPLY_COMMAND" : "python -m steamroller.models.scikit_learn --tag ${TAG_TYPE} --model-type prior --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]} --max_ngram ${MAX_NGRAM}"
-	},
-
-	{"NAME" : "SEAL",
-	 "DISABLED" : true,
-	 "TRAIN_COMMAND" : "python -m steamroller.models.seal --tag ${TAG_TYPE} --train ${SOURCES[0]} --input ${SOURCES[1]} --output ${TARGETS[0]}",
-	 "APPLY_COMMAND" : "python -m steamroller.models.seal --tag ${TAG_TYPE} --model ${SOURCES[0]} --test ${SOURCES[1]} --input ${SOURCES[2]} --output ${TARGETS[0]}"
 	},
 	
 	{"NAME" : "VaLID",
