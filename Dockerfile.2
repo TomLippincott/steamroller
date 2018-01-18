@@ -1,0 +1,11 @@
+FROM python:2.7.14-slim
+
+RUN apt-get update && \
+    apt-get install gcc -y    
+
+COPY . /tmp/steamroller
+
+RUN cd /tmp/steamroller && \
+    pip install .
+
+WORKDIR /experiment

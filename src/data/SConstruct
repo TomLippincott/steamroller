@@ -163,7 +163,7 @@ for task in env["TASKS"]:
             )
             apply_resource_list.append(resources)
             classified_items.append(classified)
-            for k, v in task.get("OTHER_DATA_SETS", {}).items():
+            for k, v in task.get("OTHER_DATA_SETS", {}).items():                
                 other_data = env.File(v)
                 other_indices, _ = env.NoSplit("work/${TASK_NAME}_${OTHER_FILE}_other.txt.gz", other_data, TASK_NAME=task_name, OTHER_FILE=k)
                 classified, resources = apply_builder(env,

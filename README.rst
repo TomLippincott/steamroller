@@ -2,6 +2,34 @@
 SteamRoller |Logo|
 ------
 
+------
+Docker quick-start
+------
+
+The five commands:
+
+```
+docker pull hltcoe/steamroller:3
+docker volume create my_experiment
+docker run -v my_experiment:/experiment hltcoe/steamroller:3 steamroller init
+docker run -v my_experiment:/experiment hltcoe/steamroller:3 steamroller run -Q
+docker run -it -p 8080:8080 -v my_experiment:/experiment hltcoe/steamroller:3 steamroller serve -H 0.0.0.0
+```
+
+correspond to:
+
+1.  Downloading the prebuilt Python 3 Docker image
+2.  Create a named volume for your experiment
+3.  Initialize the experiment volume
+4.  Perform the experiment
+5.  Start the web server
+
+You should then be able to browse to port 8080 on your local machine to see the results.
+    
+-----
+Overview
+-----
+
 SteamRoller is a framework for testing the performance of various machine learning models on different tasks in the broad area of "text classification".  It is designed to make it extremely easy to define new classification tasks, and new models, and drop them in to compare ther characteristics.  It discourages doing anything "special" for different tasks, models, or combinations thereof, to ensure the comparisons are fair and expose all the costs incurred by the different choices.
 
 SteamRoller's user-facing functionality is reflected by four submodules:
