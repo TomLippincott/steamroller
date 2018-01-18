@@ -6,15 +6,13 @@ SteamRoller |Logo|
 Docker quick-start
 ------
 
-The five commands:
+The five commands::
 
-```
-docker pull hltcoe/steamroller:3
-docker volume create my_experiment
-docker run -v my_experiment:/experiment hltcoe/steamroller:3 steamroller init
-docker run -v my_experiment:/experiment hltcoe/steamroller:3 steamroller run -Q
-docker run -it -p 8080:8080 -v my_experiment:/experiment hltcoe/steamroller:3 steamroller serve -H 0.0.0.0
-```
+  docker pull hltcoe/steamroller:3
+  docker volume create my_experiment
+  docker run -v my_experiment:/experiment hltcoe/steamroller:3 steamroller init
+  docker run -v my_experiment:/experiment hltcoe/steamroller:3 steamroller run -Q
+  docker run -it -p 8080:8080 -v my_experiment:/experiment hltcoe/steamroller:3 steamroller serve -H 0.0.0.0
 
 correspond to:
 
