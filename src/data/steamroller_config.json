@@ -84,7 +84,8 @@
 	 "YLABEL" : "Accuracy",
 	 "Y" : "Accuracy",
 	 "COLOR_LABEL" : "Model type",	 
-	 "COLOR" : "model"
+	 "COLOR" : "model",
+	 "DISABLED" : true	 
 	},
 
 	{"NAME" : "model_size",
@@ -95,7 +96,8 @@
 	 "YLABEL" : "Model size (g)",
 	 "Y" : "F_Score",
 	 "COLOR_LABEL" : "Model type",	 
-	 "COLOR" : "model"
+	 "COLOR" : "model",
+	 "DISABLED" : true	 
 	},	
 
 	{"NAME" : "application_memory",
@@ -106,7 +108,8 @@
 	 "YLABEL" : "Max memory (g) of application",
 	 "Y" : "apply_Memory",
 	 "COLOR_LABEL" : "Model type",	 
-	 "COLOR" : "model"
+	 "COLOR" : "model",
+	 "DISABLED" : true	 
 	},	
 
 	{"NAME" : "application_time",
@@ -117,7 +120,8 @@
 	 "YLABEL" : "CPU time (s) of application",
 	 "Y" : "apply_CPU",
 	 "COLOR_LABEL" : "Model type",
-	 "COLOR" : "model"	 
+	 "COLOR" : "model",
+	 "DISABLED" : true	 
 	}	
 
     ]

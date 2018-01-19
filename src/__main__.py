@@ -80,7 +80,7 @@ if __name__ == "__main__":
         @app.route("/tasks/<task>")
         def experiment(task):
             images = glob("work/{}*png".format(task))
-            return "<html><body><h3><a href=\"/\">Back</a></h3><h1>{}</h1>{}</body></html>".format(task, "\n".join(["<img src=\"/{}\"/>".format(i) for i in images]))
+            return "<html><body><h3><a href=\"/\">Back</a></h3>{}</body></html>".format("\n".join(["<img src=\"/{}\"/>".format(i) for i in images]))
 
         @app.route("/work/<image_file>")
         def image(image_file):

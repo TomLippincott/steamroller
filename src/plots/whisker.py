@@ -56,8 +56,8 @@ if __name__ == "__main__":
         ylab(options.ylabel.strip("'")) + \
         xlab(options.xlabel.strip("'")) + \
         labs(color=options.color_label.strip("'")) + \
-        geom_col(show_legend=True) + \
-        lims(y=(0.0, 1.0))
+        lims(y=(0.0, 1.0)) + \
+        geom_boxplot()
     x.save(options.output)
 
     #theme(legend_title=element_text("")) + \
