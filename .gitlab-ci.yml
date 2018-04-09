@@ -1,9 +1,17 @@
-image: python:3.5-slim
-
 stages:
   - test
 
-basic:
+basic:3.5:
+  image: python:3.5-slim
+  stage: test
+  script:
+    - pip install pip --user --upgrade
+    - pip install . --user
+  tags:
+    - docker
+
+basic:2.7:
+  image: python:2.7-slim
   stage: test
   script:
     - pip install pip --user --upgrade
