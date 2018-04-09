@@ -30,40 +30,30 @@ if __name__ == "__main__":
         return ret
 
     def init(args, _):
-        steamroller_config = resource_string(__name__, "data/steamroller_config.json").decode()
-        python_docs = [re.sub(r"\s", " ", str(getattr(__builtins__, a).__doc__))
-                       for a in dir(__builtins__)]
-        python_code = to_texts(get_files("/"), len(python_docs))
-        try:
+        steamroller_config = resource_string(__name__, "static_files/steamroller_config.json").decode()
+        python_comments = [re.sub(r"\s", " ", str(getattr(__builtins__, a).__doc__))
+                           for a in dir(__builtins__)]
+        python_code = to_texts(get_files("/"), len(python_comments))
+        if not os.path.exists("tasks"):
             os.mkdir("tasks")
-        except OSError:
-            logging.info("tasks/ directory already exists")
-        try:
-            os.mkdir("csv")
-        except OSError:
-            logging.info("csv/ directory already exists")
-        with gzip.open("csv/example.txt.gz", "wt") as ofd:
-            for i, t in enumerate(python_docs):
-                ofd.write("%d\tdoc\t%s\n" % (i, t))
+        with gzip.open("tasks/code_versus_comments.json.gz", "wt") as ofd:
+            header = {"document_count" : len(python_comments) + len(python_code)}
+            ofd.write(json.dumps(header) + "\n")
+            for i, t in enumerate(python_comments):
+                doc = {"_id" : str(i), "_text" : t, "_label" : "comment"}
+                ofd.write(json.dumps(doc) + "\n")
             for i, t in enumerate(python_code):
-                ofd.write("%d\tcode\t%s\n" % (len(python_docs) + i, t))
-        subprocess.call([sys.executable,
-                         "-m",
-                         "steamroller.tools.convert",
-                         "-i",
-                         "csv/example.txt.gz",
-                         "-t",
-                         "attribute",
-                         "-o",
-                         "tasks/example.tgz"])
-        if (not args.force) and (os.path.exists("SConstruct") or os.path.exists("steamroller_config.py")):
-            logging.error("Refusing to overwrite existing SConstruct or steamroller_config.json files (try \"--force\")")
+                doc = {"_id" : str(len(python_comments) + i), "_text" : t, "_label" : "code"}
+                ofd.write(json.dumps(doc) + "\n")
+
+        if (not args.force) and os.path.exists("steamroller_config.json"):
+            logging.error("Refusing to overwrite existing steamroller_config.json file (try \"--force\")")
         else:
             with open("steamroller_config.json", "w") as ofd:
                 ofd.write(steamroller_config)
 
     def run(args, scons_args):
-        sconstruct = resource_string(__name__, "data/SConstruct")
+        sconstruct = resource_string(__name__, "static_files/SConstruct")
         p = subprocess.Popen(["scons"] + scons_args + ["CONFIG_FILE=%s" % args.config, "-f", "-"], stdin=subprocess.PIPE)
         p.communicate(sconstruct)
 

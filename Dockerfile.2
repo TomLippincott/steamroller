@@ -3,7 +3,7 @@ FROM python:2.7.14-slim
 RUN apt-get update && \
     apt-get install gcc -y    
 
-RUN pip install concrete 'scikit-learn>=0.18.1' 'scons>=3.0.0' plotnine flask valid tqdm nltk
+RUN pip install concrete 'scikit-learn>=0.18.1' 'scons>=3.0.0' plotnine flask drmaa
 
 COPY . /tmp/steamroller
 

@@ -30,12 +30,21 @@ Overview
 
 SteamRoller is a framework for testing the performance of various machine learning models on different tasks in the broad area of "text classification".  It is designed to make it extremely easy to define new classification tasks, and new models, and drop them in to compare ther characteristics.  It discourages doing anything "special" for different tasks, models, or combinations thereof, to ensure the comparisons are fair and expose all the costs incurred by the different choices.
 
-SteamRoller's user-facing functionality is reflected by four submodules:
+JSON is SteamRoller's format across the board, with the exception of visualizations (which are images): every file should have *one JSON object per line*, so while the entire file isn't a valid JSON object, it's easy to stream (and can still be validated easily).  Each file's first line is a metadata object, and the remaining lines all the same object type.  The object types are formally defined in the `schemata/` directory, but to summarize the file types and corresponding objects:
 
-1. tasks
-2. models
-3. metrics
-4. plots
+1. data files contain `documents`
+2. feature files contain `instances`
+3. model files contain `models` (usually just one)
+4. metric files contain `measurements`
+
+SteamRoller's user-facing functionality is reflected by six submodules:
+
+1. datasets
+2. tasks
+3. extraction
+4. models
+5. metrics
+6. plots
 
 Under the hood, SteamRoller has three additional submodules:
 
@@ -71,10 +80,10 @@ Once the experiments have finished, you will want to compare their performance. 
 Using an HPC Grid
 ----
 
-By default, *steamroller_config.json* has ``"GRID" : false``, and experiments will run serially on the local machine.  If you are running on an HPC grid like Univa, Sun Grid Engine, or Torque, setting ``"GRID" : true`` instructs SteamRoller to run experiments via the *qsub* command.  Since the jobs are distributed across the grid, the invocation of SteamRoller will submit them and then *wait* until they have completed, polling the scheduler and printing the current number of running jobs.  If you interrupt the SteamRoller command in this state, *the grid jobs will continue to run*, so you can either allow them to do so (e.g. if the interruption was accidental), or manually kill the running jobs with a command like ``qdel -u USERNAME``.  The latter is particularly important if you want to change and rerun experiments, as otherwise you may have multiple jobs simultaneously building the same output file.
+By default, *steamroller_config.json* has ``"GRID" : false``, and experiments will run serially on the local machine.  If you are running on a DRMAA-compatible HPC grid like Univa, Sun Grid Engine, or Torque, setting ``"GRID" : true`` instructs SteamRoller to try to invoke commands as grid jobs.  Since the jobs are distributed across the grid, the invocation of SteamRoller will submit them and then *wait* until they have completed, polling the scheduler and printing the current number of running jobs.  If you interrupt the SteamRoller command in this state, *the grid jobs will continue to run*, so you can either allow them to do so (e.g. if the interruption was accidental), or manually kill the running jobs with a command like ``qdel -u USERNAME``.  The latter is particularly important if you want to change and rerun experiments, as otherwise you may have multiple jobs simultaneously building the same output file.
 
 ----
-Defining a new task
+Creating new experiments
 ----
 
 In SteamRoller, a *task* is simply a pointer to documents annotated with discrete labels.  For example, the default *steamroller_config.json* file has the following entry::

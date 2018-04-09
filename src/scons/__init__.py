@@ -6,7 +6,12 @@ import subprocess
 import logging
 import time
 import shlex
+from steamroller import data_sets
 
+try:
+    import drmaa
+except:
+    drmaa = False
 
 def qsub(command, name, std, dep_ids=[], grid_resources=[]):
     deps = "" if len(dep_ids) == 0 else "-hold_jid {}".format(",".join([str(x) for x in dep_ids]))
@@ -18,14 +23,14 @@ def qsub(command, name, std, dep_ids=[], grid_resources=[]):
     return int(out.strip())
 
 
-def make_emitter(script):
-    def emitter(target, source, env):
-        return (target + [target[0].rstr() + ".resources.txt"], source)
-    return emitter
+#def make_emitter(script):
+#    def emitter(target, source, env):
+#        return (target + [target[0].rstr() + ".resources.txt"], source)
+#    return emitter
 
 
-def make_builder(env, base_command, name):
-    timed_command = "python -m steamroller.tools.timer ${TARGETS[-1]} -- " + base_command
+def make_builder(env, generator, emitter, name):
+    #timed_command = "python -m steamroller.tools.timer ${TARGETS[-1]} -- " + base_command
     def grid_method(target, source, env):
         depends_on = set(filter(lambda x : x != None, [s.GetTag("built_by_job") for s in source]))
         job_id = qsub(env.subst(timed_command, source=source, target=target), name, "{}.qout".format(target[-1].rstr()), depends_on, env["GRID_RESOURCES"])
@@ -34,34 +39,34 @@ def make_builder(env, base_command, name):
         logging.info("Job %d depends on %s", job_id, depends_on)
         return None
 
-    return Builder(action=Action(grid_method, "grid(" + base_command + ")") if env["GRID"] else Action(timed_command, base_command),
-                   emitter=make_emitter(base_command.split()[0]))
+    return Builder(generator=generator, emitter=emitter)
+                   #Action(grid_method, "grid(" + base_command + ")") if env["GRID"] else Action(generator=base_command))
+#emitter=make_emitter(base_command.split()[0]))
 
+def feature_extraction_emitter(target, source, env):
+    return "${WORK_PATH}/${DATA_SET_NAME}_${FEATURE_EXTRACTOR_NAME}.gz", source
+
+def train_emitter(target, source, env):
+    return "${WORK_PATH}/${DATA_SET_NAME}_${FEATURE_EXTRACTOR_NAME}_${MODEL_NAME}_model.gz", source
+
+def apply_emitter(target, source, env):
+    return "${WORK_PATH}/${DATA_SET_NAME}_${FEATURE_EXTRACTOR_NAME}_${MODEL_NAME}_probabilities.gz", source
+
+def measurement_emitter(target, source, env):
+    return "${WORK_PATH}/${DATA_SET_NAME}_${FEATURE_EXTRACTOR_NAME}_${MODEL_NAME}_${MEASUREMENT_NAME}.gz", source
+
+def visualization_emitter(target, source, env):
+    return "${WORK_PATH}/${EXPERIMENT_NAME}_${VISUALIZATION_NAME}.png", source
 
 def generate(env):
+    if not drmaa:
+        logging.info("Not loading the DRMAA API for grid processing")
+        if env["GRID"]:
+            raise Exception("GRID=True, but unable to import DRMAA library")
 
-    env.SetDefault(
-        MAX_NGRAM=4,
-    )
-
-    for name, command in [
-            ("GetCount", "python -m steamroller.tools.count --input ${SOURCES[0]} --output ${TARGETS[0]}"),
-            ("CreateSplit", "python -m steamroller.tools.split --total_file ${SOURCES[0]} --training_size ${TRAINING_SIZE} --testing_size ${TESTING_SIZE} --train ${TARGETS[0]} --test ${TARGETS[1]}"),
-            ("NoSplit", "python -m steamroller.tools.nosplit -i ${SOURCES[0]} -o ${TARGETS[0]}"),
-            ("Accuracy", "python -m steamroller.metrics.accuracy -o ${TARGETS[0]} ${SOURCES}"),
-            ("FScore", "python -m steamroller.metrics.fscore -o ${TARGETS[0]} ${SOURCES}"),            
-            ("CollateResources", "python -m steamroller.tools.resources -o ${TARGETS[0]} -s ${STAGE} ${SOURCES}"),
-            ("CombineCSVs", "python -m steamroller.tools.combine_csvs -o ${TARGETS[0]} ${SOURCES}"),
-            ("ModelSizes", "python -m steamroller.tools.model_sizes -o ${TARGETS[0]} ${SOURCES}"),        
-            ("Plot", "python -m steamroller.plots.${TYPE} --output ${TARGETS[0]} --x ${X} --y ${Y} --xlabel \"${XLABEL}\" --ylabel \"${YLABEL}\" --title \"'${TITLE}'\" --input ${SOURCES[0]} --color \"${COLOR}\" --color_label \"'${COLOR_LABEL}'\""),
-    ]:
-        env["BUILDERS"][name] = make_builder(env, command, name)
+    for name, (generator, emitter) in data_sets.BUILDERS.items():
+        env["BUILDERS"][name] = make_builder(env, generator, emitter, name)
         
-    for model in env["MODELS"]:
-        if not model.get("DISABLED", False):
-            env["BUILDERS"]["Train{}".format(model["NAME"])] = make_builder(env, model["TRAIN_COMMAND"], "Train{}".format(model["NAME"]))
-            env["BUILDERS"]["Apply{}".format(model["NAME"])] = make_builder(env, model["APPLY_COMMAND"], "Apply{}".format(model["NAME"]))
-
     def wait_for_grid(target, source, env):
         while True:
             p = subprocess.Popen(["qstat"], stdout=subprocess.PIPE)
@@ -79,7 +84,19 @@ def generate(env):
         return None
 
     env["BUILDERS"]["WaitForGrid"] = Builder(action=wait_for_grid)
+    
+    for name, spec in env["FEATURE_EXTRACTORS"].items():
+        env["BUILDERS"][name] = Builder(action=spec["COMMAND"], emitter=feature_extraction_emitter)
 
+    for name, spec in env["MEASUREMENTS"].items():
+        env["BUILDERS"][name] = Builder(action=spec["COMMAND"], emitter=measurement_emitter)
+
+    for name, spec in env["VISUALIZATIONS"].items():
+        env["BUILDERS"][name] = Builder(action=spec["COMMAND"], emitter=visualization_emitter)
+
+    for name, spec in env["MODEL_TYPES"].items():
+        env["BUILDERS"]["Train {}".format(name)] = Builder(action=spec["TRAIN_COMMAND"], emitter=train_emitter)
+        env["BUILDERS"]["Apply {}".format(name)] = Builder(action=spec["APPLY_COMMAND"], emitter=apply_emitter)
 
 def exists(env):
     return 1

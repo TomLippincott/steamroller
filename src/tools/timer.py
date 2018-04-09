@@ -14,8 +14,7 @@ if __name__ == "__main__":
     p = subprocess.Popen(args.command, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
     if p.returncode != 0:
-        print(err)
-        raise Exception()
+        raise Exception(err)
     u = resource.getrusage(resource.RUSAGE_SELF)
 
     with gzip.open(args.output, "w") as ofd:
