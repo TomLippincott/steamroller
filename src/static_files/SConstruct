@@ -76,7 +76,6 @@ env['PRINT_CMD_LINE_FUNC'] = print_cmd_line
 # and how we decide if a dependency is out of date
 env.Decider("timestamp-newer")
 
-
 #############
 # Experiments
 metrics = {}
@@ -84,13 +83,13 @@ for experiment_name, experiment in env["EXPERIMENTS"].items():
     if experiment.get("DISABLED", False):
         continue
     measurements = []
-    for data_set_name, data_set in experiment.get("DATA_SETS", []).items():
+    for data_set_name, data_set in experiment.get("DATA_SETS", {}).items():
 
         data_set_fields = env["DATA_SETS"][data_set_name]
 
         features = {}
-        
-        for extractor_name, extraction_spec in experiment.get("FEATURE_EXTRACTORS").items():            
+
+        for extractor_name, extraction_spec in experiment.get("FEATURE_EXTRACTORS", {}).items():            
             extractor_args = extraction_spec["ARGUMENTS"]
             for fname in ([data_set_fields["FILE"]] if "FILE" in data_set_fields else [data_set_fields[x] for x in ["TRAIN", "DEV", "TEST"]]):
                 features[extractor_name] = env["BUILDERS"][extraction_spec["METHOD"]](env, source=fname, DATA_SET_NAME=data_set_name, FEATURE_EXTRACTOR_NAME=extractor_name, **extractor_args, **data_set)

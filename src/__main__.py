@@ -37,7 +37,7 @@ if __name__ == "__main__":
         if not os.path.exists("tasks"):
             os.mkdir("tasks")
         with gzip.open("tasks/code_versus_comments.json.gz", "wt") as ofd:
-            header = {"document_count" : len(python_comments) + len(python_code)}
+            header = {"HEADER" : True, "document_count" : len(python_comments) + len(python_code)}
             ofd.write(json.dumps(header) + "\n")
             for i, t in enumerate(python_comments):
                 doc = {"_id" : str(i), "_text" : t, "_label" : "comment"}
@@ -81,7 +81,8 @@ if __name__ == "__main__":
 
 
     parser = argparse.ArgumentParser("steamroller")
-    subparsers = parser.add_subparsers(help="sub-commands")
+    subparsers = parser.add_subparsers(help="sub-commands", dest="sub-command")
+    subparsers.required = True
     init_parser = subparsers.add_parser("init", help="Initialize an experiment directory")
     init_parser.add_argument("-f", "--force", dest="force", default=False, action="store_true", help="Overwrite existing files")
     init_parser.set_defaults(func=init)
@@ -96,5 +97,5 @@ if __name__ == "__main__":
     options, rest = parser.parse_known_args()
 
     logging.basicConfig(level=logging.INFO)
-
+    
     options.func(options, rest)

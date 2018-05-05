@@ -16,10 +16,10 @@
 
     // COMMAND has signature: [DataFile] -> FeatureFile
     "FEATURE_EXTRACTORS" : {
-	"Character ${N}-grams" : {
-	    "COMMAND" : "python -m steamroller.extractors.ngram --level character --tag ${TAG_TYPE} --input ${SOURCES[0]} --output ${TARGETS[0]}"
+	"Character N-grams" : {
+	    "COMMAND" : "python -m steamroller.extractors.ngram --level character --n ${N} --tag ${TAG_TYPE} --input ${SOURCES[0]} --output ${TARGETS[0]}"
 	},
-	"Word ${N}-grams" : {
+	"Word N-grams" : {
 	    "COMMAND" : "python -m steamroller.extractors.ngram --level word --n ${N} --tag ${TAG_TYPE} --input ${SOURCES[0]} --output ${TARGETS[0]}"
 	}
     },
@@ -85,6 +85,11 @@
 					  "LABEL_FIELD" : "_label",
 					  "TEXT_FIELD" : "_text"
 					 }
+	    },
+
+	    "FEATURE_EXTRACTORS" : {
+		"Character N-grams" : {"N" : 3},
+		"Word N-grams" : {"N" : 3}
 	    },
 	    
 	    // 
