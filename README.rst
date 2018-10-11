@@ -3,32 +3,29 @@ SteamRoller |Logo|
 ------
 
 ------
-Docker quick-start
+Quick start
 ------
 
-The five commands::
+As of version 1.2, SteamRoller is now usable directly in a normal SCons build setup.  Simply use the grid-aware Builder function and any command-line rule should just work, i.e. these two builders will produce the same results::
 
-  docker pull hltcoe/steamroller:3
-  docker volume create my_experiment
-  docker run -v my_experiment:/experiment hltcoe/steamroller:3 steamroller init
-  docker run -v my_experiment:/experiment hltcoe/steamroller:3 steamroller run -Q
-  docker run -it -p 8080:8080 -v my_experiment:/experiment hltcoe/steamroller:3 steamroller serve -H 0.0.0.0
+  from steamroller.scons import GridBuilder as Builder  
+  my_builder = Builder("my_command ${SOURCES} ${TARGETS}")
+  my_grid_builder = GridBuilder("my_command ${SOURCES} ${TARGETS}")
+  
+The command can also be a list that will be run in sequence, and when invoked can specify resources and the destination queue::
 
-correspond to:
+  my_grid_builder = GridBuilder(["module load cuda90/toolkit", "my_command ${SOURCES} ${TARGETS}"])
+  output = my_grid_builder("work/output.txt", "work/input.txt",
+                           GRID_QUEUE="gpu.q",
+			   GRID_RESOURCES=["gpu=1", "h_rt=10:0:0"])
 
-1.  Downloading the prebuilt Python 3 Docker image
-2.  Create a named volume for your experiment
-3.  Initialize the experiment volume
-4.  Perform the experiment
-5.  Start the web server
+One minor difference between a regular builder and its grid-aware counterpart is the latter will redirect the grid stdout/stderr to a file based on the name of the first target ("${TARGETS[0]}.qout", so for the above example, "work/output.txt.qout").
 
-You should then be able to browse to port 8080 on your local machine to see the results.
-    
 -----
 Overview
 -----
 
-SteamRoller is a framework for testing the performance of various machine learning models on different tasks in the broad area of "text classification".  It is designed to make it extremely easy to define new classification tasks, and new models, and drop them in to compare ther characteristics.  It discourages doing anything "special" for different tasks, models, or combinations thereof, to ensure the comparisons are fair and expose all the costs incurred by the different choices.
+SteamRoller up to and including 1.1 is a framework for testing the performance of various machine learning models on different tasks in the broad area of "text classification".  It is designed to make it extremely easy to define new classification tasks, and new models, and drop them in to compare ther characteristics.  It discourages doing anything "special" for different tasks, models, or combinations thereof, to ensure the comparisons are fair and expose all the costs incurred by the different choices.
 
 JSON is SteamRoller's format across the board, with the exception of visualizations (which are images): every file should have *one JSON object per line*, so while the entire file isn't a valid JSON object, it's easy to stream (and can still be validated easily).  Each file's first line is a metadata object, and the remaining lines all the same object type.  The object types are formally defined in the `schemata/` directory, but to summarize the file types and corresponding objects:
 
