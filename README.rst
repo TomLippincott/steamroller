@@ -19,6 +19,17 @@ The command can also be a list that will be run in sequence, and when invoked ca
                            GRID_QUEUE="gpu.q",
 			   GRID_RESOURCES=["gpu=1", "h_rt=10:0:0"])
 
+SteamRoller also provides a nice wrapper to help create command-line rules that track their own source files and arguments.  The following will create a builder that, given source `input.txt` and with the `DEPTH` variable set to `3`, executes the command `python src/my_script.py -i input.txt --depth 3`, and any change to the script file or `src/library.py` invalidates the cache::
+
+  from steamroller.scons import action_maker
+  my_builder = Builder(**action_maker(interpreter="python",
+                                      script="src/my_script.py",
+                                      args="-i ${SOURCES}",
+				      other_args=["DEPTH"],
+				      other_deps=["src/library.py"]))
+
+You can also put any other command-line switches, custom variable-substitutions, etc in the `args` parameter and it will be processed accordingly.
+
 One minor difference between a regular builder and its grid-aware counterpart is the latter will redirect the grid stdout/stderr to a file based on the name of the first target ("${TARGETS[0]}.qout", so for the above example, "work/output.txt.qout").
 
 -----

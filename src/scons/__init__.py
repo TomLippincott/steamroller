@@ -1,6 +1,7 @@
 import functools
 from SCons.Action import Action, CommandAction
 from SCons.Builder import Builder
+from SCons.Script import Delete
 import SCons.Util
 import subprocess
 import logging
@@ -10,10 +11,20 @@ from steamroller import data_sets
 import os.path
 import os
 
+
 try:
     import drmaa
 except:
     drmaa = False
+
+
+def action_maker(interpreter, script, args, other_deps=[], other_args=[], emitter=lambda t, s, e : (t, s, e)):
+    action = " ".join([x.strip() for x in [interpreter, script, args]] + ["${{'--{0} ' + str({1}) if {1} else ''}}".format(a.lower(), a) for a in other_args])
+    def emitter(target, source, env):
+        [env.Depends(t, s) for t in target for s in other_deps + [script]]
+        return (target, source)
+    return {"action" : action, "emitter" : emitter}
+
 
 def qsub(commands, name, std, dep_ids=[], grid_resources=[], working_dir=None, queue="all.q"):
     if not isinstance(commands, list):
@@ -48,8 +59,8 @@ def GridBuilder(action=None, generator=None, emitter=None, chdir=None, grid_reso
             env.get("GRID_RESOURCES", []),
         )
 
-
     def grid_method(target, source, env):
+        
         command = generator(target, source, env, False)
         if chdir:
             nchdir = env.Dir(chdir).abspath
@@ -58,8 +69,8 @@ def GridBuilder(action=None, generator=None, emitter=None, chdir=None, grid_reso
         depends_on = set(filter(lambda x : x != None, [s.GetTag("built_by_job") for s in source]))
         command = env.subst(command, source=source, target=target)
         job_id = qsub(command, 
-                      "steamroller",
-                      "{}.qout".format(target[0].rstr()), 
+                      env.get("GRID_LABEL", "steamroller"),
+                      "{}.qout".format(target[0].abspath), 
                       depends_on,
                       env.get("GRID_RESOURCES", []),
                       nchdir,
