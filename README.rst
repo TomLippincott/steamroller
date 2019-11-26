@@ -43,7 +43,58 @@ Here's a reasonable way to structure a new experiment.  Assuming you're starting
   pip install scons steamroller
   mkdir data src work
   
-The idea is that untouched data goes under `data/`, scripts and such for steps in your pipeline go in `src/`, and all outputs, tracked by the build system, will go under `work/`.
+The idea is that untouched data goes under `data/`, scripts and such for steps in your pipeline go in `src/`, and all outputs, tracked by the build system, will go under `work/`.  Create a file called `SConstruct` with this content::
+
+  import os
+  from steamroller import action_maker
+
+  vars = Variables("custom.py")
+  vars.AddVariables(
+    BoolVariable("USE_GRID", "Run via qsub rather than locally", False),
+    BoolVariable("USE_GPU", "Run on GPU", False),
+    ("GRID_CPU_QUEUE", "", "all.q"),
+    ("GRID_CPU_RESOURCES", "", ["h_rt=100:0:0"]),
+    ("GRID_GPU_QUEUE", "", "gpu.q@@1080"),
+    ("GRID_GPU_RESOURCES", "", ["h_rt=100:0:0", "gpu=1"]),
+    ("GPU_PREAMBLE", "", "module load cuda90/toolkit"),    
+  )
+
+  env = Environment(variables=vars, ENV=os.environ)
+
+  gpu_preamble = [env["GPU_PREAMBLE"] if env["USE_GPU"] else []]
+  model_queue = env["GRID_GPU_QUEUE"] if env["USE_GPU"] else env["GRID_CPU_QUEUE"]
+  model_resources = env["GRID_GPU_RESOURCES"] if env["USE_GPU"] else env["GRID_CPU_RESOURCES"]
+  if env["USE_GRID"]:
+    from steamroller import GridBuilder as Builder
+
+This boilerplate does a number of things, but most importantly, it ensures that build rules defined afterwards are grid-aware, if requested.  At this point you have defined no build rules or targets, so invoking the system does nothing::
+
+  (my_experiment) [tlippincott@test4 my_experiment]$ scons
+  scons: Reading SConscript files ...
+  scons: done reading SConscript files.
+  scons: Building targets ...
+  scons: `.' is up to date.
+  scons: done building targets.
+
+Next, try adding a couple build rules, using the `action_maker` helper function::
+
+  env.Append(BUILDERS={"Split" : Builder(**action_maker()),
+                       "Train" : Builder(**action_maker()),
+		       "Apply" : Builder(**action_maker()),
+		       "Plot" : Builder(**action_maker())
+		       })
+
+Finally, describe how to run your experiment, in terms of build rules and the targets they produce::
+
+  data = env.File("data/my_data.txt.gz")
+  train_data, test_data = env.Split(["work/train.txt.gz", "work/test.txt.gz"], data)
+  results = []
+  for param in range(100):
+    model = env.Train("work/model_${PARAM}.gz", train_data, PARAM=param)
+    results.append(env.Apply("work/result_${PARAM}.gz", [model, test_data], PARAM=param))
+  figure = env.Plot("work/figure.png", results)
+
+
 
 ----
 FAQ
