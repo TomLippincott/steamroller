@@ -38,63 +38,75 @@ Getting started with an example
 
 Here's a reasonable way to structure a new experiment.  Assuming you're starting in an empty directory named after the experiment (e.g. `~/my_experiment`) and have a recent version of Python 3 on your path::
 
-  python -m venv ~/venvs/my_experiment
-  source ~/venvs/my_experiment/bin/activate
-  pip install scons steamroller
-  mkdir data src work
+  $ python -m venv ~/venvs/my_experiment
+  $ source ~/venvs/my_experiment/bin/activate
+  (my_experiment) $ pip install scons steamroller
+  (my_experiment) $ mkdir data src work
   
 The idea is that untouched data goes under `data/`, scripts and such for steps in your pipeline go in `src/`, and all outputs, tracked by the build system, will go under `work/`.  Create a file called `SConstruct` with this content::
 
   import os
-  from steamroller import action_maker
+  import steamroller
 
   vars = Variables("custom.py")
   vars.AddVariables(
     BoolVariable("USE_GRID", "Run via qsub rather than locally", False),
-    BoolVariable("USE_GPU", "Run on GPU", False),
-    ("GRID_CPU_QUEUE", "", "all.q"),
-    ("GRID_CPU_RESOURCES", "", ["h_rt=100:0:0"]),
-    ("GRID_GPU_QUEUE", "", "gpu.q@@1080"),
-    ("GRID_GPU_RESOURCES", "", ["h_rt=100:0:0", "gpu=1"]),
-    ("GPU_PREAMBLE", "", "module load cuda90/toolkit"),    
   )
-
-  env = Environment(variables=vars, ENV=os.environ)
-
-  gpu_preamble = [env["GPU_PREAMBLE"] if env["USE_GPU"] else []]
-  model_queue = env["GRID_GPU_QUEUE"] if env["USE_GPU"] else env["GRID_CPU_QUEUE"]
-  model_resources = env["GRID_GPU_RESOURCES"] if env["USE_GPU"] else env["GRID_CPU_RESOURCES"]
-  if env["USE_GRID"]:
-    from steamroller import GridBuilder as Builder
+  env = Environment(variables=vars, ENV=os.environ, tools=["default", steamroller.generate])
+  env.Decider("timestamp-newer")
 
 This boilerplate does a number of things, but most importantly, it ensures that build rules defined afterwards are grid-aware, if requested.  At this point you have defined no build rules or targets, so invoking the system does nothing::
 
-  (my_experiment) [tlippincott@test4 my_experiment]$ scons
+  (my_experiment) $ scons
   scons: Reading SConscript files ...
   scons: done reading SConscript files.
   scons: Building targets ...
   scons: `.' is up to date.
   scons: done building targets.
 
-Next, try adding a couple build rules, using the `action_maker` helper function::
+Next, try adding a couple build rules, using the `ActionMaker` helper::
 
-  env.Append(BUILDERS={"Split" : Builder(**action_maker()),
-                       "Train" : Builder(**action_maker()),
-		       "Apply" : Builder(**action_maker()),
-		       "Plot" : Builder(**action_maker())
-		       })
+  env.Append(BUILDERS={"Split" : env.Builder(**env.ActionMaker("python", 
+                                                               "src/split.py", 
+                                                               args="${SOURCES[0]} ${TARGETS[0]} ${TARGETS[1]}")),
+                       "Train" : env.Builder(**env.ActionMaker("python",
+                                                               "src/train.py",
+                                                               args="${SOURCES[0]} --param ${PARAM} ${TARGETS[0]}",
+                                                               USE_GPU=True),
+                                             USE_GPU=True),
+                       "Apply" : env.Builder(**env.ActionMaker("python",
+                                                               "src/apply.py",
+                                                               args="${SOURCES} ${TARGETS[0]}")),
+                       "Plot" : env.Builder(**env.ActionMaker("python",
+                                                              "src/plot.py",
+                                                              args="${SOURCES} ${TARGETS[0]}")),
+                   })
+
+None of these scripts exist yet, so just for the sake of this example, let's make them, and a data file::
+
+  (my_experiment) $ touch data/my_data.txt.gz
+  (my_experiment) $ touch src/{split,train,apply,plot}.py
 
 Finally, describe how to run your experiment, in terms of build rules and the targets they produce::
 
   data = env.File("data/my_data.txt.gz")
-  train_data, test_data = env.Split(["work/train.txt.gz", "work/test.txt.gz"], data)
   results = []
-  for param in range(100):
-    model = env.Train("work/model_${PARAM}.gz", train_data, PARAM=param)
-    results.append(env.Apply("work/result_${PARAM}.gz", [model, test_data], PARAM=param))
+  for split in range(5):
+      train, test = env.Split(["work/train_${SPLIT}.txt", "work/test_${SPLIT}.txt"], data, SPLIT=split)
+      for param in range(20):
+          model = env.Train("work/model_${SPLIT}_${PARAM}.bin", train, SPLIT=split, PARAM=param)
+          results.append(env.Apply("work/output_${SPLIT}_${PARAM}.out", [model, test], SPLIT=split, PARAM=param))
   figure = env.Plot("work/figure.png", results)
 
+You can now invoke locally::
 
+  (my_experiment) $ scons -n
+
+Or on the grid::
+
+  (my_experiment) $ scons -n USE_GRID=True
+
+The first invocation should print out the commands it would run, the second should print them out along with some info on how they would be submitted to the grid.
 
 ----
 FAQ
