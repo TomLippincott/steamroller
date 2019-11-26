@@ -6,6 +6,8 @@ SteamRoller |Logo|
 Getting started with an example
 ------
 
+First and foremost, steamroller builds upon the [SCons](https://scons.org/), which has a [very in-depth MAN page](https://scons.org/doc/production/HTML/scons-man.html) and [API](https://scons.org/doc/latest/HTML/scons-api/index.html), but a probably-more-useful [user guide](https://scons.org/doc/production/HTML/scons-user/index.html).
+
 Here's a reasonable way to structure a new experiment.  Assuming you're starting in an empty directory named after the experiment (e.g. `~/my_experiment`) and have a recent version of Python 3 on your path::
 
   $ python -m venv ~/venvs/my_experiment
