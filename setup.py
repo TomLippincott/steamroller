@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name="SteamRoller",
-      version="1.3.1",
+      version="1.3.2",
       description="Grid-awareness for SCons build system",
       author="Tom Lippincott",
       author_email="tom@cs.jhu.edu",

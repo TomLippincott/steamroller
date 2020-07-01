@@ -85,7 +85,7 @@ def GridBuilder(env, action=None, generator=None, emitter=None, chdir=None, **ar
 
 
 def generate(env):
-    env.AddMethod(GridBuilder if env["USE_GRID"] else LocalBuilder, "Builder")
+    env.AddMethod(GridBuilder if env.get("USE_GRID", False) else LocalBuilder, "Builder")
     env.AddMethod(ActionMaker, "ActionMaker")
     env["GPU_PREAMBLE"] = "module load cuda90/toolkit"
     env["GPU_RESOURCES"] = ["h_rt=100:0:0", "gpu=1"]
