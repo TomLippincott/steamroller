@@ -13,11 +13,28 @@ import os
 
 def ActionMaker(env, interpreter, script="", args="", other_deps=[], other_args=[], emitter=lambda t, s, e : (t, s, e), **oargs):
     command = " ".join([x.strip() for x in [interpreter, script, args]] + ["${{'--{0} ' + str({1}) if {1} != None else ''}}".format(a.lower(), a) for a in other_args])
-    before = [env["GPU_PREAMBLE"]] if oargs.get("USE_GPU", False) else []
+    before = [env["GPU_PREAMBLE"]] if oargs.get("use_gpu", False) else []
     def emitter(target, source, env):
         [env.Depends(t, s) for t in target for s in other_deps + [script]]
         return (target, source)
     return {"action" : before + [command], "emitter" : emitter}
+
+
+def AddBuilder(env, name, script, args, other_deps=[], interpreter="python", use_gpu=False):
+    env.Append(
+        BUILDERS={
+            name : env.Builder(
+                **env.ActionMaker(
+                    interpreter,
+                    script,
+                    args,
+                    other_deps=other_deps,
+                    use_gpu=use_gpu
+                )
+            )
+        }
+    )
+    return getattr(env, name)
 
 
 def qsub(commands, name, std, dep_ids=[], grid_resources=[], working_dir=None, queue="all.q"):
@@ -84,15 +101,17 @@ def GridBuilder(env, action=None, generator=None, emitter=None, chdir=None, **ar
     return Builder(action=Action(grid_method, command_printer, name="steamroller"), emitter=emitter)
 
 
+
 def generate(env):
     env.AddMethod(GridBuilder if env.get("USE_GRID", False) else LocalBuilder, "Builder")
     env.AddMethod(ActionMaker, "ActionMaker")
+    env.AddMethod(AddBuilder, "AddBuilder")
     env["GPU_PREAMBLE"] = "module load cuda90/toolkit"
     env["GPU_RESOURCES"] = ["h_rt=100:0:0", "gpu=1"]
     env["GPU_QUEUE"] = "gpu.q"
     env["CPU_RESOURCES"] = ["h_rt=100:0:0"]
     env["CPU_QUEUE"] = "all.q"
-    
+    env["USE_GPU"] = False
 
 def exists(env):
     return 1
