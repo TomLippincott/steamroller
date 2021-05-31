@@ -70,7 +70,7 @@ def GridBuilder(env, action=None, generator=None, emitter=None, chdir=None, **ar
             
     def command_printer(target, source, env):
         command = generator(target, source, env, False)
-        return "Grid(command={}, queue={}, resources={})".format(
+        return ("Grid(command={}, queue={}, resources={})" if env["USE_GRID"] else "Local(command={0})").format(
             env.subst(command, target=target, source=source),
             queue,
             resources,
@@ -103,15 +103,16 @@ def GridBuilder(env, action=None, generator=None, emitter=None, chdir=None, **ar
 
 
 def generate(env):
-    env.AddMethod(GridBuilder if env.get("USE_GRID", False) else LocalBuilder, "Builder")
+    env.AddMethod(GridBuilder, "Builder")# if env.get("USE_GRID", False) else LocalBuilder, "Builder")
     env.AddMethod(ActionMaker, "ActionMaker")
     env.AddMethod(AddBuilder, "AddBuilder")
     env["GPU_PREAMBLE"] = "module load cuda90/toolkit"
     env["GPU_RESOURCES"] = ["h_rt=100:0:0", "gpu=1"]
     env["GPU_QUEUE"] = "gpu.q"
-    env["CPU_RESOURCES"] = ["h_rt=100:0:0"]
+    env["CPU_RESOURCES"] = ["h_rt=100:0:0", "mem_free=8G"]
     env["CPU_QUEUE"] = "all.q"
     env["USE_GPU"] = False
+    env["USE_GRID"] = env.get("USE_GRID", False)
 
 def exists(env):
     return 1
