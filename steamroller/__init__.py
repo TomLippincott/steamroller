@@ -11,16 +11,16 @@ import os.path
 import os
 
 
-def ActionMaker(env, interpreter, script="", args="", other_deps=[], other_args=[], emitter=lambda t, s, e : (t, s, e), **oargs):
+def ActionMaker(env, interpreter, script="", args="", other_deps=[], other_args=[], emitter=lambda t, s, e : (t, s, e), chdir=None, **oargs):
     command = " ".join([x.strip() for x in [interpreter, script, args]] + ["${{'--{0} ' + str({1}) if {1} != None else ''}}".format(a.lower(), a) for a in other_args])
     before = [env["GPU_PREAMBLE"]] if oargs.get("use_gpu", False) else []
     def emitter(target, source, env):
         [env.Depends(t, s) for t in target for s in other_deps + [script]]
         return (target, source)
-    return {"action" : before + [command], "emitter" : emitter}
+    return {"action" : before + [command], "emitter" : emitter, "chdir" : chdir}
 
 
-def AddBuilder(env, name, script, args, other_deps=[], interpreter="python", use_gpu=False):
+def AddBuilder(env, name, script, args, other_deps=[], interpreter="python", use_gpu=False, chdir=None):
     env.Append(
         BUILDERS={
             name : env.Builder(
@@ -29,7 +29,8 @@ def AddBuilder(env, name, script, args, other_deps=[], interpreter="python", use
                     script,
                     args,
                     other_deps=other_deps,
-                    use_gpu=use_gpu
+                    use_gpu=use_gpu,
+                    chdir=chdir
                 )
             )
         }
@@ -59,9 +60,13 @@ def LocalBuilder(env, **args):
     return Builder(**args)
 
 
-def GridBuilder(env, action=None, generator=None, emitter=None, chdir=None, **args):
-    queue = env["GPU_QUEUE"] if args.get("USE_GPU", False) else env["CPU_QUEUE"]
-    resources = env["GPU_RESOURCES"] if args.get("USE_GPU", False) else env["CPU_RESOURCES"]
+def GridBuilder(env, **args): #action=None, generator=None, emitter=None, chdir=None, **args):
+    action = args.get("action", None)
+    queue = env["GPU_QUEUE"] if env.get("USE_GPU", False) else env["CPU_QUEUE"]
+    resources = env["GPU_RESOURCES"] if env.get("USE_GPU", False) else env["CPU_RESOURCES"]
+    generator = args.get("generator", None)
+    emitter = args.get("emitter", None)
+    chdir = args.get("chdir", None)
     if action:
         if isinstance(action, str) or isinstance(action, list) and all([isinstance(a, str) for a in action]):
             generator = lambda target, source, env, for_signature : action
@@ -70,14 +75,14 @@ def GridBuilder(env, action=None, generator=None, emitter=None, chdir=None, **ar
             
     def command_printer(target, source, env):
         command = generator(target, source, env, False)
-        return ("Grid(command={}, queue={}, resources={})" if env["USE_GRID"] else "Local(command={0})").format(
+        return ("Grid(command={}, queue={}, resources={}, chdir='{}')" if env["USE_GRID"] else "Local(command={0})").format(
             env.subst(command, target=target, source=source),
             queue,
             resources,
+            chdir,
         )
 
     def grid_method(target, source, env):
-        
         command = generator(target, source, env, False)
         if chdir:
             nchdir = env.Dir(chdir).abspath
@@ -98,12 +103,12 @@ def GridBuilder(env, action=None, generator=None, emitter=None, chdir=None, **ar
         logging.info("Job %d depends on %s", job_id, depends_on)
         return None
 
-    return Builder(action=Action(grid_method, command_printer, name="steamroller"), emitter=emitter)
+    return Builder(action=Action(grid_method, command_printer, name="steamroller"), emitter=emitter) if env["USE_GRID"] else Builder(**args)
 
 
 
 def generate(env):
-    env.AddMethod(GridBuilder, "Builder")# if env.get("USE_GRID", False) else LocalBuilder, "Builder")
+    env.AddMethod(GridBuilder, "Builder")
     env.AddMethod(ActionMaker, "ActionMaker")
     env.AddMethod(AddBuilder, "AddBuilder")
     env["GPU_PREAMBLE"] = "module load cuda90/toolkit"
@@ -111,7 +116,7 @@ def generate(env):
     env["GPU_QUEUE"] = "gpu.q"
     env["CPU_RESOURCES"] = ["h_rt=100:0:0", "mem_free=8G"]
     env["CPU_QUEUE"] = "all.q"
-    env["USE_GPU"] = False
+    env["USE_GPU"] = env.get("USE_GPU", False)
     env["USE_GRID"] = env.get("USE_GRID", False)
 
 def exists(env):
