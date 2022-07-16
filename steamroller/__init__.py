@@ -1,7 +1,10 @@
+import re
+import sys
 import functools
 from SCons.Action import Action, CommandAction
 from SCons.Builder import Builder
 from SCons.Script import Delete
+from SCons.Variables import Variables
 import SCons.Util
 import subprocess
 import logging
@@ -75,7 +78,7 @@ def GridBuilder(env, **args): #action=None, generator=None, emitter=None, chdir=
             
     def command_printer(target, source, env):
         command = generator(target, source, env, False)
-        return ("Grid(command={}, queue={}, resources={}, chdir='{}')" if env["USE_GRID"] else "Local(command={0})").format(
+        return ("Grid(command={}, queue={}, resources={})" if env["USE_GRID"] else "Local(command={0})").format(
             env.subst(command, target=target, source=source),
             queue,
             resources,
@@ -102,15 +105,13 @@ def GridBuilder(env, **args): #action=None, generator=None, emitter=None, chdir=
             t.Tag("built_by_job", job_id)
         logging.info("Job %d depends on %s", job_id, depends_on)
         return None
-
+    
     return Builder(action=Action(grid_method, command_printer, name="steamroller"), emitter=emitter) if env["USE_GRID"] else Builder(**args)
 
 
 
 def generate(env):
-    env.AddMethod(GridBuilder, "Builder")
-    env.AddMethod(ActionMaker, "ActionMaker")
-    env.AddMethod(AddBuilder, "AddBuilder")
+    grid_vars = ["GPU_PREAMBLE", "GPU_RESOURCES", "GPU_QUEUE", "CPU_RESOURCES", "CPU_QUEUE", "USE_GPU", "USE_GRID"]
     env["GPU_PREAMBLE"] = "module load cuda90/toolkit"
     env["GPU_RESOURCES"] = ["h_rt=100:0:0", "gpu=1"]
     env["GPU_QUEUE"] = "gpu.q"
@@ -118,6 +119,51 @@ def generate(env):
     env["CPU_QUEUE"] = "all.q"
     env["USE_GPU"] = env.get("USE_GPU", False)
     env["USE_GRID"] = env.get("USE_GRID", False)
+    for item in sys.argv:
+        toks = item.split("=")
+        if len(toks) > 1 and toks[0] in grid_vars:
+            name = toks[0]
+            value = "=".join(toks[1:])
+            if name in ["USE_GRID", "USE_GPU"]:
+                env[name] = value in ["1", "True"]
+            else:
+                env[name] = value                
+    
+    for name, builder in list(env["BUILDERS"].items()):
+        commands = builder.action.presub_lines(env)
+        chdir = builder.action.chdir
+        if len(commands) != 1:
+            raise Exception("Steamroller only supports single-command actions")
+        m = re.match(r"^\s*(\S*[Pp]ython3?)\s+(.*?\.py)\s+(.*)$", commands[0])
+        if not m:
+            raise Exception("Could not parse command: '{}'".format(commands[0]))
+        interpreter, script, args = m.groups()
+        if env["USE_GRID"]:
+            use_gpu = env.get("USE_GPU", False)
+            env["BUILDERS"][name] = GridBuilder(
+                env,
+                **ActionMaker(
+                    env,
+                    interpreter,
+                    script,
+                    args,
+                    use_gpu=use_gpu,
+                    chdir=chdir,
+                )
+            )
+        else:
+            env["BUILDERS"][name] = LocalBuilder(
+                env,
+                **ActionMaker(
+                    env,
+                    interpreter,
+                    script,
+                    args,
+                    chdir=chdir,
+                )
+            )
+            
+
 
 def exists(env):
     return 1

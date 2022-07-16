@@ -21,11 +21,7 @@ The idea is that untouched data goes under `data/`, scripts and such for steps i
   import os
   import steamroller
 
-  vars = Variables("custom.py")
-  vars.AddVariables(
-    BoolVariable("USE_GRID", "Run via qsub rather than locally", False),
-  )
-  env = Environment(variables=vars, ENV=os.environ, tools=["default", steamroller.generate])
+  env = Environment(variables=vars, ENV=os.environ, tools=[steamroller.generate])
   env.Decider("timestamp-newer")
 
 This boilerplate does a number of things, but most importantly, it ensures that build rules defined afterwards are grid-aware, if requested.  At this point you have defined no build rules or targets, so invoking the system does nothing::
@@ -37,23 +33,16 @@ This boilerplate does a number of things, but most importantly, it ensures that 
   scons: `.' is up to date.
   scons: done building targets.
 
-Next, try adding a couple build rules, using the `ActionMaker` helper::
+Next, try adding a few build rules as normal::
 
-  env.Append(BUILDERS={"Split" : env.Builder(**env.ActionMaker("python", 
-                                                               "src/split.py", 
-                                                               args="${SOURCES[0]} ${TARGETS[0]} ${TARGETS[1]}")),
-                       "Train" : env.Builder(**env.ActionMaker("python",
-                                                               "src/train.py",
-                                                               args="${SOURCES[0]} --param ${PARAM} ${TARGETS[0]}",
-                                                               USE_GPU=True),
-                                             USE_GPU=True),
-                       "Apply" : env.Builder(**env.ActionMaker("python",
-                                                               "src/apply.py",
-                                                               args="${SOURCES} ${TARGETS[0]}")),
-                       "Plot" : env.Builder(**env.ActionMaker("python",
-                                                              "src/plot.py",
-                                                              args="${SOURCES} ${TARGETS[0]}")),
-                   })
+  env.Append(
+      BUILDERS={
+          "Split" : env.Builder(action="python src/split.py ${SOURCES[0]} ${TARGETS[0]} ${TARGETS[1]}"),
+	  "Train" : env.Builder(action="python src/train.py ${SOURCES[0]} --param ${PARAM} ${TARGETS[0]}"),
+	  "Apply" : env.Builder(action="python src/apply.py ${SOURCES} ${TARGETS[0]}"),
+          "Plot" : env.Builder(action="python src/plot.py ${SOURCES} ${TARGETS[0]}")
+      }
+  )
 
 None of these scripts exist yet, so just for the sake of this example, let's make them, and a data file::
 
