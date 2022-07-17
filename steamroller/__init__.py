@@ -5,6 +5,7 @@ from SCons.Action import Action, CommandAction
 from SCons.Builder import Builder
 from SCons.Script import Delete
 from SCons.Variables import Variables
+import SCons
 import SCons.Util
 import subprocess
 import logging
@@ -62,11 +63,19 @@ def qsub(commands, name, std, dep_ids=[], grid_resources=[], working_dir=None, q
 def LocalBuilder(env, **args):
     return Builder(**args)
 
+def prepare_commands(target, source, env, commands):
+    escape = env.get('ESCAPE', lambda x: x)
+    escape_list = SCons.Subst.escape_list
+    cmd_listsA = [env.subst_list(c, SCons.Subst.SUBST_CMD, target=target, source=source) for c in commands]
+    cmd_listsB = [escape_list(c[0], escape) for c in cmd_listsA]
+    return [' '.join(c) for c in cmd_listsB]
 
-def GridBuilder(env, **args): #action=None, generator=None, emitter=None, chdir=None, **args):
+
+def GridBuilder(env, **args):
     action = args.get("action", None)
-    queue = env["GPU_QUEUE"] if env.get("USE_GPU", False) else env["CPU_QUEUE"]
-    resources = env["GPU_RESOURCES"] if env.get("USE_GPU", False) else env["CPU_RESOURCES"]
+    use_gpu = args.get("USE_GPU", False)
+    queue = env["GPU_QUEUE"] if use_gpu else env["CPU_QUEUE"]
+    resources = env["GPU_RESOURCES"] if use_gpu else env["CPU_RESOURCES"]
     generator = args.get("generator", None)
     emitter = args.get("emitter", None)
     chdir = args.get("chdir", None)
@@ -77,23 +86,23 @@ def GridBuilder(env, **args): #action=None, generator=None, emitter=None, chdir=
             raise Exception("Only simple string actions (and lists of them) are supported!")
             
     def command_printer(target, source, env):
-        command = generator(target, source, env, False)
+        commands = prepare_commands(target, source, env, generator(target, source, env, False))
         return ("Grid(command={}, queue={}, resources={})" if env["USE_GRID"] else "Local(command={0})").format(
-            env.subst(command, target=target, source=source),
+            commands,
             queue,
             resources,
             chdir,
         )
-
+        
     def grid_method(target, source, env):
-        command = generator(target, source, env, False)
+        commands = prepare_commands(target, source, env, generator(target, source, env, False))
         if chdir:
             nchdir = env.Dir(chdir).abspath
         else:
             nchdir = None
         depends_on = set(filter(lambda x : x != None, [s.GetTag("built_by_job") for s in source]))
-        command = env.subst(command, source=source, target=target)
-        job_id = qsub(command, 
+        job_id = 1
+        job_id = qsub(commands, 
                       args.get("GRID_LABEL", env.get("GRID_LABEL", "steamroller")),
                       "{}.qout".format(target[0].abspath), 
                       depends_on,
@@ -107,7 +116,6 @@ def GridBuilder(env, **args): #action=None, generator=None, emitter=None, chdir=
         return None
     
     return Builder(action=Action(grid_method, command_printer, name="steamroller"), emitter=emitter) if env["USE_GRID"] else Builder(**args)
-
 
 
 def generate(env):
@@ -139,7 +147,7 @@ def generate(env):
             raise Exception("Could not parse command: '{}'".format(commands[0]))
         interpreter, script, args = m.groups()
         if env["USE_GRID"]:
-            use_gpu = env.get("USE_GPU", False)
+            use_gpu = name in env["GPU_BUILDERS"]
             env["BUILDERS"][name] = GridBuilder(
                 env,
                 **ActionMaker(
@@ -149,7 +157,8 @@ def generate(env):
                     args,
                     use_gpu=use_gpu,
                     chdir=chdir,
-                )
+                ),
+                USE_GPU=use_gpu
             )
         else:
             env["BUILDERS"][name] = LocalBuilder(

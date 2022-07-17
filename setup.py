@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name="SteamRoller",
-    version="2.0.0",
+    version="2.0.1",
     description="Grid-awareness for SCons build system",
     author="Tom Lippincott",
     author_email="tom.lippincott@jhu.edu",
