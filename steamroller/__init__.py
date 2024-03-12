@@ -10,7 +10,6 @@ import SCons
 import SCons.Util
 import subprocess
 import logging
-#import time
 import shlex
 import os.path
 import os
@@ -44,7 +43,7 @@ def AddBuilder(env, name, script, args, other_deps=[], interpreter="python", use
 
 
 #def univa(commands, name, std, dep_ids=[], grid_resources=[], working_dir=None, queue="all.q"):
-def univa(commands, name, std, dep_ids=[], working_dir=None, gpu_count=0, time="48:00:00", memory="8G"):
+def univa(commands, name, std, dep_ids=[], working_dir=None, gpu_count=0, time="48:00:00", memory="8G", queue=None, account=None):
     if not isinstance(commands, list):
         commands = [commands]
     if os.path.exists(std):
@@ -61,7 +60,7 @@ def univa(commands, name, std, dep_ids=[], working_dir=None, gpu_count=0, time="
     out, err = p.communicate("\n".join(commands).encode())
     return int(out.strip())
 
-def slurm(commands, name, std, dep_ids=[], working_dir=None, gpu_count=0, time="48:00:00", memory="8G"):
+def slurm(commands, name, std, dep_ids=[], working_dir=None, gpu_count=0, time="12:00:00", memory="8G", queue=None, account=None):
     if not isinstance(commands, list):
         commands = [commands]
     if os.path.exists(std):
@@ -71,13 +70,19 @@ def slurm(commands, name, std, dep_ids=[], working_dir=None, gpu_count=0, time="
             pass
     deps = "" if len(dep_ids) == 0 else "-d afterok:{}".format(":".join([str(x) for x in dep_ids]))
     wd = "-D {}".format(working_dir) if working_dir else "" #"-cwd"
-    qcommand = "sbatch {wd} {deps} -J {name} --kill-on-invalid-dep=yes --mail-type=NONE --mem={memory} -o {std} --parsable -t {time}".format(
+    acct = "-A {}".format(account) if account else "" #"-cwd"
+    queue = "-p {}".format(queue) if queue else "" #"-cwd"
+    gpus = "--gres=gpu:{}".format(gpu_count) if gpu_count else ""
+    qcommand = "sbatch {wd} {deps} -J {name} --kill-on-invalid-dep=yes --mail-type=NONE --mem={memory} -o {std} --parsable -t {time} {acct} {queue} {gpus}".format(
         name=name,
         deps=deps,
         wd=wd,
         std=std,
         time=time,
         memory=memory,
+        acct=acct,
+        queue=queue,
+        gpus=gpus
     )
     logging.info("\n".join(commands))
     commands = ["#!/bin/bash"] + commands
@@ -106,6 +111,9 @@ def GridAwareBuilder(env, **args):
     action = args.get("action", None)
     emitter = args.get("emitter", None)
     chdir = args.get("chdir", None)
+    overrides = args.get("overrides", {})
+    grid_label = args.get("grid_label", "steamroller")
+    grid_label = env["GRID_LABEL"] if env.get("GRID_LABEL") else grid_label
     if action:
         if isinstance(action, str) or isinstance(action, list) and all([isinstance(a, str) for a in action]):
             generator = lambda target, source, env, for_signature : action
@@ -114,13 +122,15 @@ def GridAwareBuilder(env, **args):
             
     def command_printer(target, source, env):
         commands = prepare_commands(target, source, env, generator(target, source, env, False))
-        return ("Grid(command={command}, memory={memory}, gpu_count={gpu_count}, queue={queue}, time={time})" if env.get("USE_GRID") else "Local(command={command})").format(
+        return ("Grid(command={command}, memory={memory}, gpu_count={gpu_count}, queue={queue}, time={time}, label={label})" if env.get("USE_GRID") else "Local(command={command})").format(
             command=commands,
             memory=env.get("GRID_MEMORY"),
             gpu_count=env.get("GRID_GPU_COUNT", 0),
             queue=env.get("GRID_GPU_QUEUE") if env.get("GRID_GPU_COUNT") else env.get("GRID_CPU_QUEUE"),
             time=env.get("GRID_TIME"),
+            account=env.get("GRID_ACCOUNT"),
             chdir=chdir,
+            label=grid_label
         )
         
     def grid_aware_method(target, source, env):
@@ -132,8 +142,8 @@ def GridAwareBuilder(env, **args):
         depends_on = set(filter(lambda x : x != None, [s.GetTag("built_by_job") for s in source]))
         job_id = 1
         job_id = submit_commands[env["GRID_TYPE"]](
-            commands, 
-            args.get("GRID_LABEL", env.get("GRID_LABEL", "steamroller")),
+            commands,            
+            grid_label,
             #target[-1].abspath,
             "{}.log".format(target[0].abspath), 
             depends_on,
@@ -141,6 +151,8 @@ def GridAwareBuilder(env, **args):
             #resources,
             working_dir=nchdir,
             memory=env["GRID_MEMORY"],
+            queue=env.get("GRID_QUEUE", None),
+            account=env.get("GRID_ACCOUNT", None)
         )
         for t in target:
             t.Tag("built_by_job", job_id)
@@ -153,7 +165,8 @@ def GridAwareBuilder(env, **args):
             command_printer,
             name="steamroller"
         ),
-        emitter=emitter
+        emitter=emitter,
+        **overrides
     )
 
 
@@ -162,6 +175,7 @@ def generate(env):
     for name, builder in list(env["BUILDERS"].items()):
         commands = builder.action.presub_lines(env)
         chdir = builder.action.chdir
+        #print(builder.overrides)
         if len(commands) != 1:
             raise Exception("Steamroller only supports single-command actions")
         m = re.match(r"^\s*(\S*[Pp]ython3?)\s+(.*?\.py)\s+(.*)$", commands[0])
@@ -177,7 +191,9 @@ def generate(env):
                     script,
                     args,
                     chdir=chdir,
-                )
+                ),
+                grid_label=os.path.splitext(os.path.basename(script))[0],
+                overrides=builder.overrides
             )
         else:
            env["BUILDERS"][name] = LocalBuilder(
@@ -203,8 +219,9 @@ class Environment(Base):
             ("GRID_GPU_COUNT", "How many GPUs are needed", 0),
             ("GRID_MEMORY", "How much memory to request", "8G"),
             ("GRID_TIME", "How much time to request", "06:00"),
+            ("GRID_LABEL", "Name that will be assigned to job", None),
         )
-        tools = argd.pop("tools")
+        tools = argd.pop("tools", [])
         super(Environment, self).__init__(
             *argv,
             **argd,
