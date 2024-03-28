@@ -1,0 +1,43 @@
+[metadata]
+name = "steamroller"
+
+[options]
+package_dir = "src"
+
+[options.packages.find]
+where = "src"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "steamroller"
+version = "3.0.0"
+readme = "README.rst"
+authors = [
+  {name = "Tom Lippincott", email="tom@cs.jhu.edu"}
+]
+maintainers = [
+  {name = "Tom Lippincott", email="tom@cs.jhu.edu"}
+]
+keywords = ["machine learning, parallel computing, "]
+description = "Framework for flexible, reproducible, and scalable empirical research."
+classifiers = [
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Distributed Computing"
+]
+requires-python = ">=3.9"
+dependencies = [
+    "scons==4.6.0"
+]
+
+[project.scripts]
+steamroller = "steamroller:main"
+
+[project.urls]
+repository = "https://github.com/comp-int-hum/steamroller"
+issues = "https://github.com/comp-int-hum/steamroller/issues"
