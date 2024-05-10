@@ -8,3 +8,5 @@ SteamRoller.egg-info
 dist
 *#
 work
+local
+*egg-info*

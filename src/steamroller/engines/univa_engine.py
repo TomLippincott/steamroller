@@ -27,5 +27,8 @@ class UnivaEngine(GridEngine):
 
     @classmethod
     def available(cls, *argv, **argd) -> bool:
-        return cls.check_for_executable("qsub")
+        if cls.check_for_executable("qsub"):
+            pid = subprocess.Popen(["qsub", "-help"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            out, err = pid.communicate()
+        return False
 

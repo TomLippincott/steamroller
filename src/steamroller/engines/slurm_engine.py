@@ -1,42 +1,43 @@
+import subprocess
+import json
+import re
 from .grid_engine import GridEngine
-
-def slurm(commands, name, std, dep_ids=[], working_dir=None, gpu_count=0, time="12:00:00", memory="8G", queue=None, account=None):
-    if not isinstance(commands, list):
-        commands = [commands]
-    if os.path.exists(std):
-        try:
-            os.remove(std)
-        except:
-            pass
-    deps = "" if len(dep_ids) == 0 else "-d afterok:{}".format(":".join([str(x) for x in dep_ids]))
-    wd = "-D {}".format(working_dir) if working_dir else "" #"-cwd"
-    acct = "-A {}".format(account) if account else "" #"-cwd"
-    queue = "-p {}".format(queue) if queue else "" #"-cwd"
-    gpus = "--gres=gpu:{}".format(gpu_count) if gpu_count else ""
-    qcommand = "sbatch {wd} {deps} -J {name} --kill-on-invalid-dep=yes --mail-type=NONE --mem={memory} -o {std} --parsable -t {time} {acct} {queue} {gpus}".format(
-        name=name,
-        deps=deps,
-        wd=wd,
-        std=std,
-        time=time,
-        memory=memory,
-        acct=acct,
-        queue=queue,
-        gpus=gpus
-    )
-    logging.info("\n".join(commands))
-    commands = ["#!/bin/bash"] + commands
-    p = subprocess.Popen(shlex.split(qcommand), stdout=subprocess.PIPE, stdin=subprocess.PIPE)
-    out, err = p.communicate("\n".join(commands).encode())
-    return int(out.strip())
 
 
 class SlurmEngine(GridEngine):
 
-    @property
-    def queues(self):
-        return []
+    name = "slurm"
 
+    def __init__(self):
+        pass
+        #pid = subprocess.Popen(["sacct", "-lL", "--json"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        #stdout, stderr = pid.communicate()
+        #self.state = json.loads(stdout.decode("utf-8"))
+        #pid = subprocess.Popen(["sinfo", "--json"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        #stdout, stderr = pid.communicate()
+        #self.info = json.loads(stdout.decode("utf-8"))
+
+    def job_names(self):
+        return set([j["name"] for j in self.state["jobs"]])
+    
     @classmethod
     def available(cls, *argv, **argd) -> bool:
         return cls.check_for_executable("sacct")
+
+    submit_string = " ".join(
+        [
+            "sbatch",
+            "-J ${STEAMROLLER_NAME}",
+            "--kill-on-invalid-dep=yes",
+            "--mail-type=NONE",
+            "-o ${STEAMROLLER_LOG}",
+            "--parsable",
+            "${'-D ' + STEAMROLLER_WORKING_DIRECTORY if STEAMROLLER_WORKING_DIRECTORY else ''}",
+            "${'-A ' + STEAMROLLER_ACCOUNT if STEAMROLLER_ACCOUNT else ''}",
+            "${'-t ' + STEAMROLLER_TIME if STEAMROLLER_TIME else ''}",
+            "${'--mem=' + STEAMROLLER_MEMORY if STEAMROLLER_MEMORY else ''}",
+            "${'-p ' + STEAMROLLER_QUEUE if STEAMROLLER_QUEUE else ''}",
+            "${'--gres=gpu:' + str(STEAMROLLER_GPU_COUNT) if STEAMROLLER_GPU_COUNT else ''}",
+            "${'-d afterok:' + ':'.join(map(str, STEAMROLLER_DEPENDENCIES)) if STEAMROLLER_DEPENDENCIES else ''}",            
+        ]
+    )

@@ -1,3 +1,7 @@
+from SCons.Builder import Builder
+from SCons.Action import Action, CommandAction
+import SCons.Subst
+
 def prepare_commands(target, source, env, commands):
     escape = env.get('ESCAPE', lambda x: x)
     escape_list = SCons.Subst.escape_list
