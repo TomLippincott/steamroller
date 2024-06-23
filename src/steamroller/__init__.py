@@ -16,7 +16,7 @@ import shlex
 import os.path
 import os
 
-from SCons.Script.Main import main as scons_main, python_version_unsupported, version_string, path_string, revert_io, _exec_main, memory_stats, count_stats, ENABLE_JSON, SConsPrintHelpException, print_objects, print_memoizer, print_time, _main, _scons_user_error, exit_status
+from SCons.Script.Main import main as scons_main, python_version_unsupported, version_string, path_string, revert_io, _exec_main, memory_stats, count_stats, ENABLE_JSON, SConsPrintHelpException, print_objects, print_memoizer, print_time, _main, _scons_user_error, exit_status, _scons_syntax_error, _scons_internal_error
 from SCons.Script.Main import AddOption
 from steamroller.engines import registry
 from steamroller.environment import Environment

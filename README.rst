@@ -1,10 +1,10 @@
-------
+-------------------
 SteamRoller |Logo|
-------
+-------------------
 
-------
+------------------------------------
 Getting started with an example
-------
+------------------------------------
 
 First and foremost, steamroller builds upon the [SCons](https://scons.org/), which has a [very in-depth MAN page](https://scons.org/doc/production/HTML/scons-man.html) and [API](https://scons.org/doc/latest/HTML/scons-api/index.html), but a probably-more-useful [user guide](https://scons.org/doc/production/HTML/scons-user/index.html).
 
@@ -29,9 +29,9 @@ However, steamroller makes it easy to instead run on a grid with maximal paralle
 
 This will submit the experiment to the grid and immediately return: you can check the status of the experiment by running `sacct -s R,PD,F` (work is underway to make monitoring a first-order aspect of steamroller, but for the moment you want to be careful not to resubmit while jobs from a previous invocation are still pending).  See below for the broader set of steamroller variables that can be overridden.
 
-------
+------------
 Scaling up
-------
+------------
 
 As described above, steamroller is indistinguishable from the [SCons](https://scons.org/) system itself, which is very well-documented: so, one could simply use it in this fashion, running experiments in serial, locally (e.g. on a laptop).  Steamroller's power comes from the ability to easily flip a switch to take advantage of the massively parallel architecture of a high-performance compute cluster, without changing the underlying code.
 

@@ -112,7 +112,7 @@ class GridEngine(ABC):
             raise Exception("No such file: '{}'".format(script))
         
         generator = self.create_generator(commands)
-        
+
         return Builder(
             action=Action(
                 create_method(generator, chdir, self.submit_string),
@@ -138,7 +138,7 @@ class GridEngine(ABC):
         def emitter(target, source, env):
             [env.Depends(t, s) for t in target for s in other_deps + [script]]
             return (target, source)
-        return None
+        return emitter
 
     def create_command_printer(self, generator):
         def command_printer(target, source, env):
@@ -155,7 +155,7 @@ class GridEngine(ABC):
                         "commands={}".format(commands),
                         "name={}".format(self.create_name(target, source, env)),
                         "job_id={}".format(job_id),
-                        "depends_on_jobs={}".format(depends_on)
+                        "depends_on_jobs={}".format(depends_on),
                     ]# + [
                     #    "{}={}".format(k, v) for k, v in self.parameters.items() if v
                     #]

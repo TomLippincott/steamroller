@@ -16,7 +16,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "steamroller"
-version = "3.0.0"
+version = "3.0.2"
 readme = "README.rst"
 authors = [
   {name = "Tom Lippincott", email="tom@cs.jhu.edu"}
