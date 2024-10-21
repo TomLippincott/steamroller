@@ -102,8 +102,9 @@ class GridEngine(ABC):
         
         commands = builder.action.presub_lines(env)
         chdir = builder.action.chdir
+        
+        m = re.match(r"^\s*((?:\S*[Pp]ython3?)|(?:accelerate launch))\s+(.*?\.py)\s+(.*)$", commands[0])
 
-        m = re.match(r"^\s*(\S*[Pp]ython3?)\s+(.*?\.py)\s+(.*)$", commands[0])
         if not m:
             raise Exception("Could not parse command: '{}'".format(commands[0]))
         
