@@ -8,7 +8,6 @@ import gzip
 import re
 import functools
 import time
-import imp
 import sys
 from steamroller import Environment
 

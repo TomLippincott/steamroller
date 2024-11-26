@@ -1,3 +1,5 @@
+import sys
+import os
 import os.path
 import re
 import logging
@@ -11,7 +13,7 @@ from steamroller.engines import registry
 logger = logging.getLogger("steamroller")
 
 
-def generate(env):    
+def generate(env):
     engine = registry[env["STEAMROLLER_ENGINE"]]()
     for name, builder in list(env["BUILDERS"].items()):
         env["BUILDERS"][name] = engine.create_builder(
@@ -20,17 +22,17 @@ def generate(env):
         )
     #AddOption("--new_project", dest="new_project", default=False, action="store_true", help="")
 
-    
+
 class Environment(Base):
     def __init__(self, *argv, **argd):
-        
+
         logging.basicConfig(level=logging.DEBUG)
 
         vars = argd.pop("variables")
         engines = {}
         for name, engine_class in registry.items():
             engines[name] = engine_class().available()
-            
+
         vars.AddVariables(
             EnumVariable("STEAMROLLER_ENGINE", "Which steamroller engine to use", "local", [e for e, a in engines.items() if a]),
             ("STEAMROLLER_QUEUE", "", None),
@@ -47,7 +49,8 @@ class Environment(Base):
             *argv,
             **argd,
             tools=tools + [generate],
-            variables=vars
+            variables=vars,
+            ENV=os.environ
         )
         self.Decider("timestamp-newer")
 
