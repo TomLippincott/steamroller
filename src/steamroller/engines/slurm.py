@@ -1,5 +1,6 @@
 import subprocess
 import re
+from typing import Any
 from .grid_engine import GridEngine
 from ..util import GridAwareBuilder, ActionMaker
 
@@ -39,6 +40,19 @@ class SlurmEngine(GridEngine):
     @property
     def queues(self):
         return []    
+
+    @classmethod
+    def variables(cls) -> [Any]:
+        return [
+            ("STEAMROLLER_QUEUE", "", None),
+            ("STEAMROLLER_ACCOUNT", "", None),
+            ("STEAMROLLER_MEMORY", "", "8G"),
+            ("STEAMROLLER_TIME", "", "06:00:00"),
+            ("STEAMROLLER_GPU_COUNT", "", 0),
+            ("STEAMROLLER_JOB_NAME_PREFIX", "", "steamroller"),
+            ("STEAMROLLER_SUBMIT_COMMAND", "", None),
+            ("STEAMROLLER_SHELL", "", "#!/bin/bash"),
+        ]
     
     @classmethod
     def available(cls, *argv, **argd) -> bool:

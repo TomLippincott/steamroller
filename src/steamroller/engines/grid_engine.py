@@ -1,6 +1,7 @@
 import re
 from abc import ABC, abstractmethod
 import typing
+from typing import Any
 import os
 import os.path
 import hashlib
@@ -9,7 +10,10 @@ import subprocess
 import shlex
 from SCons.Builder import Builder
 from SCons.Action import Action, CommandAction
+from SCons.Script import GetOption
 import SCons.Subst
+from .base_engine import BaseEngine
+from ..util import check_for_executable
 
 
 logger = logging.getLogger("steamroller")
@@ -81,13 +85,18 @@ def create_method(generator, chdir, submit_string):
     return method
 
 
-class GridEngine(ABC):
+class GridEngine(BaseEngine):
     """
     
     """
 
     pseudo_id = 0
     parameters = ["MEMORY", "TIME", "QUEUE", "ACCOUNT", "GPU_COUNT", "DEPENDENCIES", "LABEL_PREFIX", "WORKING_DIRECTORY"]
+
+    def create_name(self, target, source, env):
+        m = hashlib.md5()
+        m.update(bytes(" ".join([x.get_abspath() for x in target] + [x.get_abspath() for x in source]), "utf-8"))
+        return "{}_{}".format(env["STEAMROLLER_NAME_PREFIX"], m.hexdigest())    
     
     @classmethod
     def check_for_executable(cls, name: str) -> bool:
@@ -96,6 +105,10 @@ class GridEngine(ABC):
     @classmethod
     @abstractmethod
     def available(cls, *argv, **argd) -> bool:
+        raise NotImplemented()
+
+    @classmethod
+    def variables(cls) -> [Any]:
         raise NotImplemented()
     
     def create_builder(self, env, builder, *argv, **argd):
@@ -113,9 +126,9 @@ class GridEngine(ABC):
         
         generator = self.create_generator(commands)
         action = Action(
-                create_method(generator, chdir, self.submit_string),
-                self.create_command_printer(generator),
-            )
+            create_method(generator, chdir, self.submit_string),
+            self.create_command_printer(generator),
+        )
         def get_contents(target, source, env):
             commands = generator(target, source, env, False)
             action = Action(commands)
@@ -140,10 +153,22 @@ class GridEngine(ABC):
     def create_commands(self, commands):
         pass
     
-    def create_emitter(self, script, other_deps=[]):
+    def create_emitter(self, script, commands, other_deps=[]):
         def emitter(target, source, env):
-            [env.Depends(t, s) for t in target for s in other_deps + [script]]
-            return (target, source)
+            actual_targets = []
+            cmd = " ".join(prepare_commands(target, source, env, commands))
+            m = hashlib.md5()
+            m.update(bytes(cmd.encode("utf-8")))
+            dig = m.hexdigest()
+            for t in target:
+                if os.path.split(t)[0] == "":
+                    actual_targets.append(env.File(os.path.join(env["STEAMROLLER_OUTPUT_ROOT"], dig, t)))
+                else:
+                    actual_targets.append(t)
+            [env.Depends(t, s) for t in actual_targets for s in other_deps + [script]]            
+            if env["STEAMROLLER_ALWAYS"]:
+                [env.AlwaysBuild(t) for t in actual_targets]
+            return (actual_targets, source)
         return emitter
 
     def create_command_printer(self, generator):

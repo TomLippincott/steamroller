@@ -1,6 +1,24 @@
+import hashlib
+import os.path
+import os
 from SCons.Builder import Builder
 from SCons.Action import Action, CommandAction
 import SCons.Subst
+
+
+def expand_experiment(spec, cur=[{}]):
+    k, v = spec[0]
+    if isinstance(v, (int, str, float, tuple)):
+        next_cur = [c | {k : v} for c in cur]
+    elif isinstance(v, list):
+        next_cur = sum([[c | {k : val} for c in cur] for val in v], [])
+    else:
+        raise Exception()
+    if len(spec) <= 1:
+        return next_cur
+    else:
+        return expand_experiment(spec[1:], next_cur)
+
 
 def prepare_commands(target, source, env, commands):
     escape = env.get('ESCAPE', lambda x: x)
@@ -72,6 +90,29 @@ def GridAwareBuilder(env, **args):
         **overrides
     )
 
+def check_for_executable(name: str) -> bool:
+    return any([os.path.exists(os.path.join(p, name)) for p in os.environ["PATH"].split(":")])
+
+def prepare_commands(target, source, env, commands):
+    escape = env.get('ESCAPE', lambda x: x)
+    escape_list = SCons.Subst.escape_list
+    cmd_listsA = [env.subst_list(c, SCons.Subst.SUBST_CMD, target=target, source=source) for c in commands]
+    cmd_listsB = [escape_list(c[0], escape) for c in cmd_listsA]
+    return [' '.join(c) for c in cmd_listsB]
+
+
+def generate_path(target, source, env, commands):    
+    escape = env.get('ESCAPE', lambda x: x)
+    escape_list = SCons.Subst.escape_list
+    cmd_listsA = [env.subst_list(c, SCons.Subst.SUBST_CMD, target=target, source=source) for c in commands]
+    cmd_listsB = [escape_list(c[0], escape) for c in cmd_listsA]
+    cmd = " ".join([' '.join(c) for c in cmd_listsB])
+    m = hashlib.md5()
+    m.update(bytes(cmd.encode("utf-8")))
+    for s in source:
+        m.update(bytes(s.rstr().encode("utf-8")))
+    dig = m.hexdigest()
+    return [env["STEAMROLLER_OUTPUT_ROOT"], env["STEAMROLLER_LABEL"], dig]
 
 
 def ActionMaker(env, interpreter, script="", args="", other_deps=[], other_args=[], emitter=lambda t, s, e : (t, s, e), chdir=None, **oargs):
