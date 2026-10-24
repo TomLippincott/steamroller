@@ -101,18 +101,23 @@ def prepare_commands(target, source, env, commands):
     return [' '.join(c) for c in cmd_listsB]
 
 
-def generate_path(target, source, env, commands):    
+def generate_path(target, source, env, commands):
+    haystack = " ".join(commands)
     escape = env.get('ESCAPE', lambda x: x)
     escape_list = SCons.Subst.escape_list
     cmd_listsA = [env.subst_list(c, SCons.Subst.SUBST_CMD, target=target, source=source) for c in commands]
     cmd_listsB = [escape_list(c[0], escape) for c in cmd_listsA]
     cmd = " ".join([' '.join(c) for c in cmd_listsB])
+    sig = env.subst_list("${TARGETS} ${SOURCES}", SCons.Subst.SUBST_CMD, target=target, source=source)
     m = hashlib.md5()
-    m.update(bytes(cmd.encode("utf-8")))
+    #m.update(bytes(cmd.encode("utf-8")))
     for s in source:
         m.update(bytes(s.rstr().encode("utf-8")))
+    for t in target:
+        m.update(bytes(t.rstr().encode("utf-8")))
     dig = m.hexdigest()
-    return [env["STEAMROLLER_OUTPUT_ROOT"], env["STEAMROLLER_LABEL"], dig]
+    components = env["STEAMROLLER_EXPERIMENT_COMPONENTS"] + ["STEAMROLLER_FOLD={}".format(env["STEAMROLLER_FOLD"])] + ["{}={}".format(k, v) for k, v in env["STEAMROLLER_CONFIG_COMPONENTS"] if k in haystack]
+    return components, dig
 
 
 def ActionMaker(env, interpreter, script="", args="", other_deps=[], other_args=[], emitter=lambda t, s, e : (t, s, e), chdir=None, **oargs):

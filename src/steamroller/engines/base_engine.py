@@ -51,17 +51,16 @@ class BaseEngine(ABC):
             actual_targets = []
             # if no targets were specified (this is not an ideal way to test that)
             if all([str(s).startswith(str(t)) for t, s in zip(target, source)]):
-                target = overrides["STEAMROLLER_DEFAULT_TARGETS"]
-            
-
-            for t in target:
-                if os.path.split(t)[0] == "":
-                    path = generate_path(target, source, env, commands) + [t]
-                    actual_targets.append(env.File(os.path.join(*path)))
-                else:
-                    actual_targets.append(env.File(t))
+                for t in env["STEAMROLLER_DEFAULT_TARGETS"]:
+                    comps, hsh = generate_path(target, source, env, commands) #+ [t]
+                    pref, suf = re.match(r"^(.*?)(\.[^\.]+(?:\.gz)?)?$", t).groups()
+                    comps.append("{}_{}{}".format(pref, hsh, suf))
+                    actual_targets.append(env.File(os.path.join(*comps)))
+            else:
+                actual_targets = [env.File(t) for t in target]
             [env.Depends(t, s) for t in actual_targets for s in file_deps]
-            env.Alias(overrides["STEAMROLLER_LABEL"], actual_targets)
+            if "STEAMROLLER_LABEL" in env:
+                env.Alias(env["STEAMROLLER_LABEL"], actual_targets)
             if env["STEAMROLLER_ALWAYS"]:
                 [env.AlwaysBuild(t) for t in actual_targets]
             return (actual_targets, source)

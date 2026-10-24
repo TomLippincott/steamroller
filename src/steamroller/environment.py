@@ -1,6 +1,7 @@
 import sys
 import os
 import os.path
+import gzip
 import re
 import hashlib
 import json
@@ -17,8 +18,9 @@ logger = logging.getLogger("steamroller")
 
 
 def save_config_emitter(target, source, env):
-    print(target[0])
-    new_targets = env.subst("work/${STEAMROLLER_CONFIG_DIGEST}/") + target[0].rstr()
+    path = os.path.join(env["STEAMROLLER_OUTPUT_PATH_COMPONENTS"])
+    #new_targets = env.subst("work/${STEAMROLLER_CONFIG_DIGEST}/") + target[0].rstr()
+    new_targets = path + target[0].rstr()
     env.Alias("config", new_targets)
     return (new_targets, source)
 
@@ -26,19 +28,27 @@ def save_config_emitter(target, source, env):
 def save_config(target, source, env):
     j = json.loads(env.Dump(format="json"))
     j["STEAMROLLER_OUTPUTS"] = [s.rstr() for s in source]
-    with open(target[0].rstr(), "wt") as ofd:
+    with gzip.open(target[0].rstr(), "wt") as ofd:
         ofd.write(json.dumps(j))
 
 
 def perform_experiments(env, steps):
     for experiment in env["STEAMROLLER_EXPERIMENTS"]:
+        exp_comps = [env["STEAMROLLER_OUTPUT_ROOT"], experiment["NAME"]]
         for config in expand_experiment(list(sorted(experiment.items()))):
             conf_env = env.Override(config)
+            conf_comps = []
+            for name, val in config.items():
+                conf_comps.append((name, val))
             for fold in range(conf_env["STEAMROLLER_FOLDS"]):
+                #comps = exp_comps + conf_comps + ["FOLD={}".format(fold)]
                 m = hashlib.md5()
                 m.update(bytes(str(config).encode("utf-8")))
                 config["STEAMROLLER_FOLD"] = fold
-                config["STEAMROLLER_CONFIG_DIGEST"] = m.hexdigest()                
+                config["STEAMROLLER_CONFIG_DIGEST"] = m.hexdigest()
+                #config["STEAMROLLER_OUTPUT_PATH_COMPONENTS"] = comps
+                config["STEAMROLLER_EXPERIMENT_COMPONENTS"] = exp_comps
+                config["STEAMROLLER_CONFIG_COMPONENTS"] = conf_comps
                 fold_env = conf_env.Override(config)
                 steps(fold_env)
 
@@ -78,7 +88,16 @@ class Environment(Base):
             ("STEAMROLLER_EXPERIMENTS", "", []),
             ("STEAMROLLER_FOLDS", "", 1),
             ("STEAMROLLER_AXES", "", None),
-            ("STEAMROLLER_HASHING", "", False),
+            # (
+            #     "STEAMROLLER_OUTPUT_PATH_COMPONENTS",
+            #     (
+            #         "This list-variable determines how SteamRoller generates the output path for Builders invoked without "
+            #         "specific target files. It is a sequence of strings corresponding to path components as follows: "
+            #         "if the string S corresponds to an environment variable, the component is 'S=<value>', e.g. 'FOLD=1'. "
+            #         "Otherwise, the component is simply 'S'. All paths begin with the first component from 'STEAMROLLER_OUTPUT_ROOT'." 
+            #     ),
+            #     []
+            # ),
             
             # This can, but probably shouldn't, be overridden:
             ("STEAMROLLER_OUTPUT_ROOT", "", "work"),
@@ -90,6 +109,8 @@ class Environment(Base):
             
             # These are not meant to be overridden, but are used dynamically by SteamRoller
             ("STEAMROLLER_FOLD", "", 0),
+            ("STEAMROLLER_EXPERIMENT_COMPONENTS", "", []),
+            ("STEAMROLLER_CONFIG_COMPONENTS", "", []),            
             
             # These are standard SCons variables that (may) need be set a particular way for SteamRoller
             #("IMPLICIT_COMMAND_DEPENDENCIES", "Don't ", False),
